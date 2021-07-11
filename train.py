@@ -72,7 +72,7 @@ class Trainer:
         """
         step = epoch * self.trainsize
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
-            with tqdm.tqdm(total=self.trainsize, leave=False) as pbar:
+            with tqdm.tqdm(total=self.trainsize, position=0, leave=False) as pbar:
                 for iter, (text, mel, textlen, mellen) in enumerate(self.trainset):
                     with tf.GradientTape() as tape:
                         # tape.watch(self.model.trainable_variables)
@@ -88,11 +88,11 @@ class Trainer:
                     del grad
 
                     step += 1
-                    pbar.update()
                     pbar.set_postfix(
                         {'loss': loss.numpy().item(),
                          'step': step,
                          'grad': norm.numpy().item()})
+                    pbar.update()
 
                     with self.train_log.as_default():
                         tf.summary.scalar('loss/loss', loss, step)
