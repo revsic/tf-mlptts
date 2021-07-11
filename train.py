@@ -109,6 +109,8 @@ class Trainer:
                         if (iter + 1) % (self.trainsize // 10) == 0:
                             tf.summary.image(
                                 'align/weights', self.align_img(attn), step, max_outputs=1)
+                    
+                    del loss, losses, attn, norm
 
             self.model.write(
                 '{}_{}.ckpt'.format(self.ckpt_path, epoch), self.optim)
