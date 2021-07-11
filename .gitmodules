@@ -1,3 +1,6 @@
 [submodule "speechset"]
 	path = speechset
 	url = https://github.com/revsic/speechset
+[submodule "tf-diffwave"]
+	path = tf-diffwave
+	url = https://github.com/revsic/tf-diffwave
