@@ -148,3 +148,29 @@ class MLPTextToSpeech(tf.keras.Model):
             maxlen = tf.reduce_max(lengths)
         # [B, maxlen]
         return tf.cast(tf.range(maxlen)[None] < lengths[:, None], tf.float32)
+
+    def write(self, path: str,
+              optim: Optional[tf.keras.optimizers.Optimizer] = None):
+        """Write checkpoint with `tf.train.Checkpoint`.
+        Args:
+            path: path to write.
+            optim: optional optimizer.
+        """
+        kwargs = {'model': self}
+        if optim is not None:
+            kwargs['optim'] = optim
+        ckpt = tf.train.Checkpoint(**kwargs)
+        ckpt.save(path)
+
+    def restore(self, path: str,
+                optim: Optional[tf.keras.optimizers.Optimizer] = None):
+        """Restore checkpoint with `tf.train.Checkpoint`.
+        Args:
+            path: path to restore.
+            optim: optional optimizer.
+        """
+        kwargs = {'model': self}
+        if optim is not None:
+            kwargs['optim'] = optim
+        ckpt = tf.train.Checkpoint(**kwargs)
+        return ckpt.restore(path)
