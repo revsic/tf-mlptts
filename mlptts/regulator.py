@@ -72,7 +72,7 @@ class Regulator(tf.keras.Model):
         start = end - durations
 
         # [1, T, 1]
-        timestep = tf.range(tf.shape(mask)[1])[None, :, None]
+        timestep = tf.range(tf.shape(mask)[1], dtype=tf.float32)[None, :, None]
         # [B, T, S]
         start = timestep - start[:, None]
         # [B, T, S]
