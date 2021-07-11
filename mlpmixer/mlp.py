@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.python.keras.layers.convolutional import Conv2DTranspose
 
 
 class ChannelMLP(tf.keras.Model):
