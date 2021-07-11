@@ -2,8 +2,6 @@ from typing import Optional, Tuple
 
 import tensorflow as tf
 
-from speechset import AcousticDataset
-
 from .config import Config
 from .mlpmixer import MLPMixer
 from .regulator import Regulator
@@ -19,8 +17,7 @@ class MLPTextToSpeech(tf.keras.Model):
         """
         super().__init__()
         self.embedding = tf.keras.Sequential([
-            tf.keras.layers.Embedding(
-                AcousticDataset.VOCABS, config.embedding),
+            tf.keras.layers.Embedding(config.vocabs, config.embedding),
             tf.keras.layers.Conv1D(config.channels, config.prenet_kernels, padding='same'),
             tf.keras.layers.Activation(tf.nn.silu)])
 
