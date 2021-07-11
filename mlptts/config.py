@@ -1,11 +1,13 @@
 class Config:
     """Model configuration for mlp-tts.
     """
-    def __init__(self, mel: int):
+    def __init__(self, vocabs: int, mel: int):
         """Initializer.
         Args:
+            vocabs: size of the vocabularies.
             mel: size of the output channels.
         """
+        self.vocabs = vocabs
         self.mel = mel
 
         self.embedding = 256
