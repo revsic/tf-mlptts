@@ -13,13 +13,13 @@ class Config:
         self.embedding = 256
         self.prenet_kernels = 3
 
-        self.channels = 512  # 768
+        self.channels = 128  # 768
 
-        self.text_layers = 12
+        self.text_layers = 8  # 12
         self.text_ch_hiddens = self.channels * 4
-        self.text_kernels = 192
+        self.text_kernels = 64  # 192
         self.text_strides = self.text_kernels // 4
-        self.text_tp_hiddens = 384
+        self.text_tp_hiddens = 128  # 384
         self.text_dropout = 0.5  # 0.
 
         self.dur_channels = 128
@@ -30,9 +30,9 @@ class Config:
         self.reg_kernels = 3
         self.reg_mlp = 16
 
-        self.mel_layers = 12
+        self.mel_layers = 8  # 12
         self.mel_ch_hiddens = self.channels * 4
-        self.mel_kernels = 192
+        self.mel_kernels = 128  # 192
         self.mel_strides = self.text_kernels // 4
-        self.mel_tp_hiddens = 384
+        self.mel_tp_hiddens = 128  # 384
         self.mel_dropout = 0.5  # 0.
