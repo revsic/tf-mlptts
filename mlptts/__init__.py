@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import tensorflow as tf
 
@@ -88,7 +88,7 @@ class MLPTextToSpeech(tf.keras.Model):
             durations = factor[:, None] * durations
         else:
             mellen = tf.cast(tf.math.ceil(inf_mellen), tf.int32)
-        
+
         ## 3. Align
         # [B, T]
         mel_mask = self.mask(mellen)
@@ -99,8 +99,41 @@ class MLPTextToSpeech(tf.keras.Model):
 
         ## 4. Decode mel-spectrogram.
         # [B, T, mel]
-        mel = self.meldec(aligned)
+        mel = self.meldec(aligned) * mel_mask[..., None]
         return mel, mellen, weights, durations
+
+    def compute_loss(self,
+                     text: tf.Tensor,
+                     textlen: tf.Tensor,
+                     mel: tf.Tensor,
+                     mellen: tf.Tensor) -> Tuple[
+            tf.Tensor, Dict[str, tf.Tensor], tf.Tensor]:
+        """Compute loss of mlp-tts.
+        Args:
+            text: [tf.int32; [B, S]], text tokens.
+            textlen: [tf.int32; [B]], length of the text sequence.
+            mel: [tf.float32; [B, T, mel]], ground-truth mel-spectrogram.
+            mellen: [tf.int32; [B]], length of the mel-spectrogram.
+        Returns:
+            loss: [tf.float32; []], loss values.
+            losses: {key: [tf.float32; []]}, individual loss values.
+            weights: [tf.float32; [B, T, S]], attention alignment. 
+        """
+        # [B, T, num_mels], _, [B, T, S], [B, S]
+        inf_mel, _, weights, durations = self.call(text, textlen, mellen=mellen)
+        # [B]
+        mellen = tf.cast(mellen, tf.float32)
+        # [B], l1-loss
+        melloss = tf.reduce_sum(tf.abs(inf_mel - mel), axis=[1, 2])
+        # []
+        melloss = tf.reduce_mean(melloss / (mellen * self.config.mel))
+        # []
+        durloss = tf.reduce_mean(
+            tf.abs(tf.math.log(tf.reduce_sum(durations)) - tf.math.log(mellen)))
+        # []
+        loss = melloss + durloss
+        losses = {'melloss': melloss, 'durloss': durloss}
+        return loss, losses, weights
 
     def mask(self, lengths: tf.Tensor, maxlen: Optional[tf.Tensor] = None) -> tf.Tensor:
         """Generate the mask from length vectors.
