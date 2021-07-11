@@ -13,7 +13,7 @@ class MLPMixer(tf.keras.Model):
                  kernels: int,
                  strides: int,
                  tp_hiddens: int,
-                 dropout: float):
+                 dropout: float = 0.):
         """Initializer.
         Args:
             numlayers: the number of the mixer layers.
