@@ -18,8 +18,7 @@ class MLPTextToSpeech(tf.keras.Model):
         super().__init__()
         self.embedding = tf.keras.Sequential([
             tf.keras.layers.Embedding(config.vocabs, config.embedding),
-            tf.keras.layers.Conv1D(config.channels, config.prenet_kernels, padding='same'),
-            tf.keras.layers.Activation(tf.nn.silu)])
+            tf.keras.layers.Conv1D(config.channels, config.prenet_kernels, padding='same')])
 
         self.textenc = MLPMixer(
             config.text_layers,
