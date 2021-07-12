@@ -184,7 +184,7 @@ class MLPTextToSpeech(tf.keras.Model):
         # [B, S, C]
         dkl = self.gll(aux['latent']) - self.gll(aux['latent'], aux['mu'], aux['sigma'])
         # [B]
-        dkl = tf.reduce_sum(dkl, axis[1, 2]) / (
+        dkl = tf.reduce_sum(dkl, axis=[1, 2]) / (
             tf.cast(textlen, tf.float32) * self.config.res_channels)
         # []
         dkl = tf.reduce_mean(dkl)
