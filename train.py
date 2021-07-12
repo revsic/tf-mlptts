@@ -108,7 +108,7 @@ class Trainer:
 
                         if (it + 1) % (self.trainsize // 10) == 0:
                             tf.summary.image(
-                                'mel/train', self.mel_img(aux['mel']),
+                                'mel/train', self.mel_img(aux['mel'][0:1, :aux['mellen'][0]]),
                                 step, max_outputs=1)
                             tf.summary.image(
                                 'align/train', self.align_img(aux['attn']),
