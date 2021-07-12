@@ -7,12 +7,13 @@ import tensorflow as tf
 class PointwiseBlender(tf.keras.Model):
     """Nonlienar pointwise blender for positional information and context.
     """
-    def __init__(self, channels: int, kernels: int, mlp: int):
+    def __init__(self, channels: int, kernels: int, mlp: int, out: int):
         """Initializer.
         Args:
             channels: size of the convolutional channels.
             kernels: size of the convolutional kernel.
             mlp: size of the mlp channels.
+            out: size of the output channels.
         """
         super().__init__()
         self.proj = tf.keras.Sequential([
@@ -21,7 +22,7 @@ class PointwiseBlender(tf.keras.Model):
             tf.keras.layers.Activation(tf.nn.silu)])
         self.mlp = tf.keras.Sequential([
             tf.keras.layers.Dense(mlp, activation=tf.nn.silu),
-            tf.keras.layers.Dense(mlp, activation=tf.nn.silu)])
+            tf.keras.layers.Dense(out, activation=tf.nn.silu)])
     
     def call(self, context: tf.Tensor, pos: tf.Tensor) -> tf.Tensor:
         """Blend the positional information.
@@ -29,7 +30,7 @@ class PointwiseBlender(tf.keras.Model):
             context: [tf.float32; [B, S, C]], context.
             pos: [tf.float32; [B, T, S, P]], matrix representation of positional kernel.
         Returns:
-            [tf.float32; [B, T, S, M]], blended matrix.
+            [tf.float32; [B, T, S, O]], blended matrix.
         """
         timestep = tf.shape(pos)[1]
         # [B, T, S, C]
@@ -41,18 +42,19 @@ class PointwiseBlender(tf.keras.Model):
 class Regulator(tf.keras.Model):
     """Length regulator introduced by Parallel Tacotron 2.
     """
-    def __init__(self, channels: int, conv: int, kernels: int, mlp: int):
+    def __init__(self, channels: int, conv: int, kernels: int, mlp: int, aux: int):
         """Initializer.
         Args:
             channels: size of the input channels.
             conv: size of the convolutional channels.
             kernels: size of the convolutional kernels.
             mlp: size of the mlp channels.
+            aux: size of the auxiliary context.
         """
         super().__init__()
-        self.mlp_weight = PointwiseBlender(conv, kernels, mlp)
+        self.mlp_weight = PointwiseBlender(conv, kernels, mlp, mlp)
         self.proj_weight = tf.keras.layers.Dense(1)
-        self.mlp_aux = PointwiseBlender(conv, kernels, mlp)
+        self.mlp_aux = PointwiseBlender(conv, kernels, mlp, aux)
         self.proj_aux = tf.keras.layers.Dense(channels)
     
     def call(self, context: tf.Tensor, durations: tf.Tensor, mask: tf.Tensor) \
@@ -87,12 +89,10 @@ class Regulator(tf.keras.Model):
         weights = mask[:, 0:1] * weights + (1 - mask[:, 0:1]) * -1e6
         # [B, T, S]
         weights = tf.nn.softmax(weights, axis=-1) * mask
-        # [B, T, C]
-        aligned = tf.matmul(weights, context)
 
-        # [B, T, M]
+        # [B, T, A]
         aux = tf.reduce_sum(
             self.mlp_aux(context, pos) * weights[..., None], axis=2)
         # [B, T, C]
-        aligned = self.proj_aux(tf.concat([aligned, aux], axis=-1))
+        aligned = tf.matmul(weights, context) + self.proj_aux(aux) * mask[..., 0:1]
         return weights, aligned

@@ -59,7 +59,8 @@ class MLPTextToSpeech(tf.keras.Model):
             tf.keras.layers.Activation(tf.nn.softplus)])
 
         self.regulator = Regulator(
-            config.channels, config.reg_conv, config.reg_kernels, config.reg_mlp)
+            config.channels, config.reg_conv, config.reg_kernels,
+            config.reg_mlp, config.reg_aux)
 
         self.meldec = tf.keras.Sequential([
             MLPMixer(
