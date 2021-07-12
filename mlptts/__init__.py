@@ -1,9 +1,11 @@
 from typing import Dict, Optional, Tuple
 
+import numpy as np
 import tensorflow as tf
 
 from .config import Config
 from .mlpmixer import MLPMixer
+from .refattn import ReferenceAttention
 from .regulator import Regulator
 
 
@@ -29,6 +31,24 @@ class MLPTextToSpeech(tf.keras.Model):
             config.text_strides,
             config.text_tp_hiddens,
             config.text_dropout)
+        
+        self.resenc = tf.keras.Sequential([
+            tf.keras.layers.Dense(config.channels),
+            MLPMixer(
+                config.res_layers,
+                config.channels,
+                config.mel_ch_hiddens,
+                config.mel_kernels,
+                config.mel_strides,
+                config.mel_tp_hiddens,
+                config.mel_dropout)])
+    
+        self.refattn = ReferenceAttention(config.channels)
+        self.proj_mu = tf.keras.layers.Dense(config.res_channels)
+        self.proj_sigma = tf.keras.layers.Dense(
+            config.res_channels, activation=tf.nn.softplus)
+
+        self.proj_latent = tf.keras.layers.Dense(config.channels)
 
         self.durator = tf.keras.Sequential([
             tf.keras.Sequential([
@@ -55,18 +75,24 @@ class MLPTextToSpeech(tf.keras.Model):
     def call(self,
              text: tf.Tensor,
              textlen: tf.Tensor,
+             mel: Optional[tf.Tensor] = None,
              mellen: Optional[tf.Tensor] = None) -> Tuple[
                  tf.Tensor, tf.Tensor, tf.Tensor]:
         """Generate log-mel scale power spectrogram from text tokens.
         Args:
             text: [tf.int32; [B, S]], text tokens.
             textlen: [tf.int32; [B]], length of the text sequence.
+            mel: [tf.float32; [B, T, mel]], reference mel-spectrogram.
             mellen: [tf.int32; [B]], desired mel lengths.
         Returns:
             mel: [tf.float32; [B, T, mel]], log-mel scale power spectrogram.
             mellen: [tf.int32; [B]], length of the mel spectrogram.
             weights: [tf.float32; [B, T, S]], attention alignment.
-            durations: [tf.float32; [B, S]], speech durations of each text tokens.
+            aux: {key: tf.Tensor}, auxiliary features.
+                durations: [tf.float32; [B, S]], speech durations of each text tokens.
+                mu: [tf.float32; [B, S, R]], latent mean.
+                sigma: [tf.float32; [B, S, R]], latent stddev.
+                latent: [tf.float32; [B, S, R]], latent variable.
         """
         ## 1. Text encoding
         # [B, S]
@@ -75,7 +101,26 @@ class MLPTextToSpeech(tf.keras.Model):
         embeddings = self.embedding(text) * text_mask[..., None]
         # [B, S, C]
         context = self.textenc(embeddings) * text_mask[..., None]
-        
+
+        ## 2. Residual encoding
+        if mel is not None:
+            # [B, T]
+            mel_mask = self.mask(mellen, maxlen=tf.shape(mel)[1])
+            # [B, T, C]
+            residual = self.resenc(mel) * mel_mask
+            # [B, S, T]
+            refattn_mask = text_mask[..., None] * mel_mask[:, None]
+            # [B, S, C]
+            aligned = self.refattn(context, residual, refattn_mask)
+            # [B, S, C]
+            mu, sigma = self.proj_mu(aligned), self.proj_sigma(aligned)
+        else:
+            mu, sigma = 0., 1.
+        # [B, S, C]
+        latent = tf.random.normal(tf.shape(context)) * sigma + mu
+        # [B, S, C]
+        context = self.proj_latent(tf.concat([context, latent], axis=-1))
+
         ## 2. Inference duration
         # [B, S]
         durations = tf.squeeze(self.durator(context), axis=-1)
@@ -100,7 +145,13 @@ class MLPTextToSpeech(tf.keras.Model):
         ## 4. Decode mel-spectrogram.
         # [B, T, mel]
         mel = self.meldec(aligned) * mel_mask[..., None]
-        return mel, mellen, weights, durations
+        # auxiliary features
+        aux = {
+            'dur': durations,
+            'mu': mu,
+            'sigma': sigma,
+            'latent': latent}
+        return mel, mellen, weights, aux
 
     def compute_loss(self,
                      text: tf.Tensor,
@@ -119,8 +170,8 @@ class MLPTextToSpeech(tf.keras.Model):
             losses: {key: [tf.float32; []]}, individual loss values.
             weights: [tf.float32; [B, T, S]], attention alignment. 
         """
-        # [B, T, num_mels], _, [B, T, S], [B, S]
-        inf_mel, _, weights, durations = self.call(text, textlen, mellen=mellen)
+        # [B, T, mel], _, [B, T, S], _
+        inf_mel, _, weights, aux = self.call(text, textlen, mel=mel, mellen=mellen)
         # [B]
         mellen = tf.cast(mellen, tf.float32)
         # [B], l1-loss
@@ -129,11 +180,32 @@ class MLPTextToSpeech(tf.keras.Model):
         melloss = tf.reduce_mean(melloss / (mellen * self.config.mel))
         # []
         durloss = tf.reduce_mean(
-            tf.abs(tf.math.log(tf.reduce_sum(durations)) - tf.math.log(mellen)))
+            tf.abs(tf.math.log(tf.reduce_sum(aux['dur'])) - tf.math.log(mellen)))
+        # [B, S, C]
+        dkl = self.gll(aux['latent']) - self.gll(aux['latent'], aux['mu'], aux['sigma'])
+        # [B]
+        dkl = tf.reduce_sum(dkl, axis[1, 2]) / (
+            tf.cast(textlen, tf.float32) * self.config.res_channels)
         # []
-        loss = melloss + durloss
-        losses = {'melloss': melloss, 'durloss': durloss}
+        dkl = tf.reduce_mean(dkl)
+        # []
+        loss = melloss + durloss + dkl
+        losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
         return loss, losses, weights
+
+    def gll(self, inputs: tf.Tensor, mean: tf.Tensor = 0., stddev: tf.Tensor = 1.) -> tf.Tensor:
+        """Gaussian log-likelihood.
+        Args:
+            inputs: [tf.float32; [...]], input tensor.
+            mean: [tf.float32; [...]], mean.
+            stddev: [tf.float32; [...]], standard deviation.
+        Returns:
+            [tf.float32; [...]], likelihood.
+        """
+        # [...]
+        logstd = tf.math.log(tf.maximum(stddev, 1e-5))
+        return -0.5 * (np.log(2 * np.pi) + 2 * logstd +
+            tf.exp(-2 * logstd) * tf.square(inputs - mean))
 
     def mask(self, lengths: tf.Tensor, maxlen: Optional[tf.Tensor] = None) -> tf.Tensor:
         """Generate the mask from length vectors.

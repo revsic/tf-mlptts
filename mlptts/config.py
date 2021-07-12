@@ -22,6 +22,9 @@ class Config:
         self.text_tp_hiddens = 128                  # 384
         self.text_dropout = 0.3                     # 0.
 
+        self.res_layers = 4
+        self.res_channels = 16
+
         self.dur_kernels = [5, 3, 1]
         self.dur_dropout = 0.3                      # 0.
 
