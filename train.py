@@ -76,7 +76,7 @@ class Trainer:
                 for it, (text, mel, textlen, mellen) in enumerate(self.trainset):
                     with tf.GradientTape() as tape:
                         # tape.watch(self.model.trainable_variables)
-                        loss, losses, attn = \
+                        loss, losses, aux = \
                             self.model.compute_loss(text, textlen, mel, mellen)
 
                     grad = tape.gradient(loss, self.model.trainable_variables)
@@ -108,20 +108,20 @@ class Trainer:
 
                         if (it + 1) % (self.trainsize // 10) == 0:
                             tf.summary.image(
-                                'align/weights', self.align_img(attn), step, max_outputs=1)
-                    
-                    del loss, losses, attn, norm
+                                'mel/train', self.mel_img(aux['mel']),
+                                step, max_outputs=1)
+                            tf.summary.image(
+                                'align/train', self.align_img(aux['attn']),
+                                step, max_outputs=1)
+
+                    del loss, losses, aux, norm
 
             self.model.write(
                 '{}_{}.ckpt'.format(self.ckpt_path, epoch), self.optim)
 
-            loss, (align, textlen, mellen) = self.eval_loss()
             with self.test_log.as_default():
-                for key, value in loss.items():
+                for key, value in self.eval_loss().items():
                     tf.summary.scalar(f'loss/{key}', value, step)
-
-                tf.summary.image(
-                    'align/weights', self.align_img(align), step, max_outputs=1)
 
                 mel, pmel, audio, amel, align = self.evaluate()
                 tf.summary.image(
@@ -136,7 +136,7 @@ class Trainer:
                     'audio/eval', audio[None, ..., None],
                     self.config.data.sr, step)
 
-                del text, mel, pmel, audio, align, textlen, mellen
+                del mel, pmel, audio, amel, align
 
     def eval_loss(self) -> Tuple[
             Dict[str, tf.Tensor],
@@ -149,11 +149,9 @@ class Trainer:
             mellen: [tf.float32; [B]], mel lengths for alignment plotting.
         """
         loss = {}
-        align, textlen, mellen = None, None, None
         for text, mel, textlen, mellen in tqdm.tqdm(
                 self.testset, total=self.testsize, leave='False'):
-            loss_, losses, align = \
-                self.model.compute_loss(text, textlen, mel, mellen)
+            loss_, losses, _ = self.model.compute_loss(text, textlen, mel, mellen)
             losses['loss'] = loss_
             for key, val in losses.items():
                 if key not in loss:
@@ -162,7 +160,7 @@ class Trainer:
 
         for key, val in loss.items():
             loss[key] = sum(val) / len(val)
-        return loss, (align, textlen, mellen)
+        return loss
 
     def evaluate(self, idx: Optional[int] = None) \
             -> Tuple[tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor, tf.Tensor]:
@@ -187,13 +185,13 @@ class Trainer:
         # [1, T, mel]
         mel = mel[idx:idx + 1, :mellen[idx]]
         # [1, T', mel], [1], [1, T' / F, S]
-        pmel, _, align, _ = self.model(text, textlen[idx:idx + 1])
+        pmel, _, aux = self.model(text, textlen[idx:idx + 1])
         # [1, T' x hop]
         audio, _ = self.diffwave(pmel)
         # [1, T', mel]
         amel = self.ttsdata.melstft(audio)
         # [T, mel], [T', mel], [T' x hop], [T', mel], [T' / F, S]
-        return mel[0], pmel[0], audio[0], amel[0], align[0]
+        return mel[0], pmel[0], audio[0], amel[0], aux['attn'][0]
 
     def align_img(self, align: tf.Tensor) -> tf.Tensor:
         """Generate alignment images.
