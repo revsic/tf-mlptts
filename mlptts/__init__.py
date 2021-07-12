@@ -197,7 +197,8 @@ class MLPTextToSpeech(tf.keras.Model):
         # []
         loss = melloss + durloss + dkl
         losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
-        return loss, losses, {'attn': aux['attn'], 'mel': inf_mel, 'mellen': mellen}
+        return loss, losses, \
+            {'attn': aux['attn'], 'mel': inf_mel, 'mellen': tf.cast(mellen, tf.int32)}
 
     def gll(self, inputs: tf.Tensor, mean: tf.Tensor = 0., stddev: tf.Tensor = 1.) -> tf.Tensor:
         """Gaussian log-likelihood.
