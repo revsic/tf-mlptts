@@ -89,8 +89,8 @@ class MLPTextToSpeech(tf.keras.Model):
         Returns:
             mel: [tf.float32; [B, T, mel]], log-mel scale power spectrogram.
             mellen: [tf.int32; [B]], length of the mel spectrogram.
-            weights: [tf.float32; [B, T, S]], attention alignment.
             aux: {key: tf.Tensor}, auxiliary features.
+                attn: [tf.float32; [B, T, S]], attention alignment.
                 durations: [tf.float32; [B, S]], speech durations of each text tokens.
                 mu: [tf.float32; [B, S, R]], latent mean.
                 sigma: [tf.float32; [B, S, R]], latent stddev.
@@ -153,18 +153,19 @@ class MLPTextToSpeech(tf.keras.Model):
         mel = self.meldec(aligned) * mel_mask[..., None]
         # auxiliary features
         aux = {
+            'attn': weights,
             'dur': inf_dur,
             'mu': mu,
             'sigma': sigma,
             'latent': latent}
-        return mel, mellen, weights, aux
+        return mel, mellen, aux
 
     def compute_loss(self,
                      text: tf.Tensor,
                      textlen: tf.Tensor,
                      mel: tf.Tensor,
                      mellen: tf.Tensor) -> Tuple[
-            tf.Tensor, Dict[str, tf.Tensor], tf.Tensor]:
+            tf.Tensor, Dict[str, tf.Tensor], Dict[str, tf.Tensor]]:
         """Compute loss of mlp-tts.
         Args:
             text: [tf.int32; [B, S]], text tokens.
@@ -174,10 +175,13 @@ class MLPTextToSpeech(tf.keras.Model):
         Returns:
             loss: [tf.float32; []], loss values.
             losses: {key: [tf.float32; []]}, individual loss values.
-            weights: [tf.float32; [B, T, S]], attention alignment. 
+            aux: {key: tf.Tensor}, auxiliary outputs.
+                attn: [tf.float32; [B, T, S]], attention alignment.
+                mel: [tf.float32; [B, T, mel]], generated mel.
+                mellen: [tf.float32; [B]], length of the mel-spectrogram. 
         """
         # [B, T, mel], _, [B, T, S], _
-        inf_mel, _, weights, aux = self.call(text, textlen, mel=mel, mellen=mellen)
+        inf_mel, _, aux = self.call(text, textlen, mel=mel, mellen=mellen)
         # [B], [B]
         mellen, textlen = tf.cast(mellen, tf.float32), tf.cast(textlen, tf.float32)
         # [], l1-loss
@@ -193,7 +197,7 @@ class MLPTextToSpeech(tf.keras.Model):
         # []
         loss = melloss + durloss + dkl
         losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
-        return loss, losses, weights
+        return loss, losses, {'attn': aux['attn'], 'mel': inf_mel, 'mellen': mellen}
 
     def gll(self, inputs: tf.Tensor, mean: tf.Tensor = 0., stddev: tf.Tensor = 1.) -> tf.Tensor:
         """Gaussian log-likelihood.
