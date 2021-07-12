@@ -183,7 +183,7 @@ class MLPTextToSpeech(tf.keras.Model):
             tf.reduce_sum(tf.abs(inf_mel - mel), axis=1) / mellen[:, None])
         # []
         durloss = tf.reduce_mean(
-            tf.abs(tf.reduce_sum(aux['dur']) - mellen) / textlen)
+            tf.abs(tf.reduce_sum(aux['dur'], axis=1) - mellen) / textlen)
         # [B, S, C]
         dkl = self.gll(aux['latent'], aux['mu'], aux['sigma']) - self.gll(aux['latent'])
         # []
