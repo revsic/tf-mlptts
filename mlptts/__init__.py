@@ -131,7 +131,7 @@ class MLPTextToSpeech(tf.keras.Model):
             # [B]
             factor = tf.cast(mellen, tf.float32) / inf_mellen
             # [B, S]
-            durations = tf.stop_gradient(factor[:, None]) * inf_dur
+            durations = factor[:, None] * inf_dur
         else:
             # [B]
             mellen = tf.cast(tf.math.ceil(inf_mellen), tf.int32)
