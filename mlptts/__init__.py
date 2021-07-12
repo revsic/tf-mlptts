@@ -31,11 +31,14 @@ class MLPTextToSpeech(tf.keras.Model):
             config.text_dropout)
 
         self.durator = tf.keras.Sequential([
-            tf.keras.layers.Dense(config.dur_channels),
-            tf.keras.Sequential([
-                MLPMixer(1, config.dur_channels, config.dur_channels,
-                         kernels, 1, 1, dropout=config.dur_dropout)
-                for kernels in config.dur_kernels]),
+            MLPMixer(
+                config.dur_layers,
+                config.channels,
+                config.dur_ch_hiddens,
+                config.dur_kernels,
+                config.dur_strides,
+                config.dur_tp_hiddens,
+                config.dur_dropout),
             tf.keras.layers.Dense(1),
             tf.keras.layers.Activation(tf.nn.softplus)])
 
