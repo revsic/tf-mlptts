@@ -107,7 +107,7 @@ class MLPTextToSpeech(tf.keras.Model):
             # [B, T]
             mel_mask = self.mask(mellen, maxlen=tf.shape(mel)[1])
             # [B, T, C]
-            residual = self.resenc(mel) * mel_mask
+            residual = self.resenc(mel) * mel_mask[..., None]
             # [B, S, T]
             refattn_mask = text_mask[..., None] * mel_mask[:, None]
             # [B, S, C]
@@ -117,7 +117,8 @@ class MLPTextToSpeech(tf.keras.Model):
         else:
             mu, sigma = 0., 1.
         # [B, S, C]
-        latent = tf.random.normal(tf.shape(context)) * sigma + mu
+        latent = tf.random.normal(
+            [*tf.shape(context)[:2], self.config.res_channels]) * sigma + mu
         # [B, S, C]
         context = self.proj_latent(tf.concat([context, latent], axis=-1))
 
