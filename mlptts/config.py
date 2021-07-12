@@ -22,11 +22,7 @@ class Config:
         self.text_tp_hiddens = 128                  # 384
         self.text_dropout = 0.3                     # 0.
 
-        self.dur_layers = 3
-        self.dur_ch_hiddens = self.channels
-        self.dur_kernels = 4
-        self.dur_strides = 2
-        self.dur_tp_hiddens = 4
+        self.dur_kernels = [5, 3, 1]
         self.dur_dropout = 0.3                      # 0.
 
         self.reg_conv = 8
