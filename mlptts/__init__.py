@@ -71,6 +71,7 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.mel_strides,
                 config.mel_tp_hiddens,
                 config.mel_dropout),
+            tf.keras.layers.LayerNormalization(axis=-1),
             tf.keras.layers.Dense(config.mel)])
 
     def call(self,
