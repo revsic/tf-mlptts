@@ -122,20 +122,23 @@ class MLPTextToSpeech(tf.keras.Model):
         # [B, S, C]
         context = self.proj_latent(tf.concat([context, latent], axis=-1))
 
-        ## 2. Inference duration
+        ## 3. Inference duration
         # [B, S]
-        durations = tf.squeeze(self.durator(context), axis=-1)
+        inf_dur = tf.squeeze(self.durator(context), axis=-1)
         # [B]
-        inf_mellen = tf.reduce_sum(durations, axis=-1)
+        inf_mellen = tf.reduce_sum(inf_dur, axis=-1)
         if mellen is not None:
             # [B]
             factor = tf.cast(mellen, tf.float32) / inf_mellen
             # [B, S]
-            durations = factor[:, None] * durations
+            durations = tf.stop_gradient(factor[:, None]) * inf_dur
         else:
+            # [B]
             mellen = tf.cast(tf.math.ceil(inf_mellen), tf.int32)
+            # [B, S]
+            durations = inf_dur
 
-        ## 3. Align
+        ## 4. Align
         # [B, T]
         mel_mask = self.mask(mellen)
         # [B, T, S]
@@ -143,12 +146,12 @@ class MLPTextToSpeech(tf.keras.Model):
         # [B, T, S], [B, T, C]
         weights, aligned = self.regulator(context, durations, attn_mask)
 
-        ## 4. Decode mel-spectrogram.
+        ## 5. Decode mel-spectrogram.
         # [B, T, mel]
         mel = self.meldec(aligned) * mel_mask[..., None]
         # auxiliary features
         aux = {
-            'dur': durations,
+            'dur': inf_dur,
             'mu': mu,
             'sigma': sigma,
             'latent': latent}
@@ -173,22 +176,18 @@ class MLPTextToSpeech(tf.keras.Model):
         """
         # [B, T, mel], _, [B, T, S], _
         inf_mel, _, weights, aux = self.call(text, textlen, mel=mel, mellen=mellen)
-        # [B]
-        mellen = tf.cast(mellen, tf.float32)
-        # [B], l1-loss
-        melloss = tf.reduce_sum(tf.abs(inf_mel - mel), axis=[1, 2])
-        # []
-        melloss = tf.reduce_mean(melloss / (mellen * self.config.mel))
+        # [B], [B]
+        mellen, textlen = tf.cast(mellen, tf.float32), tf.cast(textlen, tf.float32)
+        # [], l1-loss
+        melloss = tf.reduce_mean(
+            tf.reduce_sum(tf.abs(inf_mel - mel), axis=1) / mellen[:, None])
         # []
         durloss = tf.reduce_mean(
-            tf.abs(tf.math.log(tf.reduce_sum(aux['dur'])) - tf.math.log(mellen)))
+            tf.abs(tf.reduce_sum(aux['dur']) - mellen) / textlen)
         # [B, S, C]
         dkl = self.gll(aux['latent'], aux['mu'], aux['sigma']) - self.gll(aux['latent'])
-        # [B]
-        dkl = tf.reduce_sum(dkl, axis=[1, 2]) / (
-            tf.cast(textlen, tf.float32) * self.config.res_channels)
         # []
-        dkl = tf.reduce_mean(dkl)
+        dkl = tf.reduce_mean(tf.reduce_sum(dkl, axis=1) / textlen[:, None])
         # []
         loss = melloss + durloss + dkl
         losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
