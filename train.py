@@ -72,8 +72,8 @@ class Trainer:
         """
         step = epoch * self.trainsize
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
-            with tqdm.tqdm(total=self.trainsize, position=0, leave=False) as pbar:
-                for iter, (text, mel, textlen, mellen) in enumerate(self.trainset):
+            with tqdm.tqdm(total=self.trainsize, leave=False) as pbar:
+                for it, (text, mel, textlen, mellen) in enumerate(self.trainset):
                     with tf.GradientTape() as tape:
                         # tape.watch(self.model.trainable_variables)
                         loss, losses, attn = \
@@ -106,7 +106,7 @@ class Trainer:
                         tf.summary.scalar('common/lr', lr, step)
                         tf.summary.scalar('common/grad-norm', norm, step)
 
-                        if (iter + 1) % (self.trainsize // 10) == 0:
+                        if (it + 1) % (self.trainsize // 10) == 0:
                             tf.summary.image(
                                 'align/weights', self.align_img(attn), step, max_outputs=1)
                     
@@ -241,6 +241,7 @@ if __name__ == '__main__':
     parser.add_argument('--download', default=False, action='store_true')
     parser.add_argument('--from-raw', default=False, action='store_true')
     parser.add_argument('--ignore-warning', default=False, action='store_true')
+    parser.add_argument('--auto-rename', default=False, action='store_true')
     args = parser.parse_args()
 
     if args.ignore_warning:
@@ -253,6 +254,10 @@ if __name__ == '__main__':
             config = Config.load(json.load(f))
 
     log_path = os.path.join(config.train.log, config.train.name)
+    if args.auto_rename and os.path.exists(log_path):
+        config.train.name = next(
+            f'{config.train.name}_{i}' for i in range(1024)
+            if not os.path.exists(f'{log_path}_{i}'))
     if not os.path.exists(log_path):
         os.makedirs(log_path)
     
