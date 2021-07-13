@@ -24,7 +24,7 @@ class MLPTextToSpeech(tf.keras.Model):
         self.textenc = MLPMixer(
             config.text_layers,
             config.channels,
-            config.text_ch_hiddens,
+            config.text_hiddens,
             config.eps,
             config.text_dropout)
 
