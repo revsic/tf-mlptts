@@ -75,3 +75,62 @@ class ConvMLP(tf.keras.Model):
         padsize = (tf.shape(x)[1] - timestep) // 2
         # [B, T, C]
         return inputs + x[:, padsize:padsize + timestep]
+
+
+class DynWeightMLP(tf.keras.Model):
+    """MLP with dynamic weights.
+    WARNING: currently, modification of temporal scale is impossible.
+    """
+    def __init__(self, eps: float = 1e-3):
+        """Initializer.
+        Args:
+            eps: small value for layer scale.
+        """
+        super().__init__()
+        self.proj_upper = tf.keras.layers.Dense(1)
+        self.proj_lower = tf.keras.layers.Dense(1)
+        self.proj_bias = tf.keras.layers.Dense(1)
+        self.scale = tf.Variable(eps)
+
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Compute weights and project.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T x F, C]], projected input.
+        """
+        # [B, T, 1], [B, T, 1]
+        upper, lower = self.proj_upper(inputs), self.proj_lower(inputs)
+        # [B, T, T]
+        weights = self.scale * (upper + tf.transpose(lower[:, None], [0, 2, 1]))
+        # [B, T, 1]
+        bias = self.proj_bias(inputs)
+        return tf.matmul(weights, inputs) + bias
+
+
+class DynTemporalMLP(tf.keras.Model):
+    """Temporal MLP with dynamic weights.
+    """
+    def __init__(self, eps: float = 1e-3, dropout: float = 0.):
+        """Initializer.
+        Args:
+            eps: small value for layer scale.
+            dropout: dropout rate.
+        """
+        super().__init__()
+        self.transform = tf.keras.Sequential([
+            tf.keras.layers.LayerNormalization(axis=-1),
+            DynWeightMLP(eps),
+            tf.keras.layers.Activation(tf.nn.gelu),
+            tf.keras.layers.Dropout(dropout),
+            DynWeightMLP(eps),
+            tf.keras.layers.Dropout(dropout)])
+    
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """MLP transform.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T, C]], transformed tensor.
+        """
+        return inputs + self.transform(inputs)
