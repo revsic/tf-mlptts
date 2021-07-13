@@ -78,7 +78,7 @@ class ConvMLP(tf.keras.Model):
 
 
 class DynWeightMLP(tf.keras.Model):
-    """MLP with dynamic weights.
+    """MLP with dynamic weights, computed by `self.scale * (upper + loewr.T)`.
     WARNING: currently, modification of temporal scale is impossible.
     """
     def __init__(self, eps: float = 1e-3):
@@ -101,11 +101,12 @@ class DynWeightMLP(tf.keras.Model):
         """
         # [B, T, 1], [B, T, 1]
         upper, lower = self.proj_upper(inputs), self.proj_lower(inputs)
-        # [B, T, T]
-        weights = self.scale * (upper + tf.transpose(lower, [0, 2, 1]))
-        # [B, T, 1]
-        bias = self.proj_bias(inputs)
-        return tf.matmul(weights, inputs) + bias
+        # [B, T, C], optimized
+        weighted = self.scale * (
+            # [B, T, 1] * [B, 1, C] + [B, 1, T] x [B, T, C]
+            upper * tf.reduce_sum(inputs, axis=1)[:, None]
+            + tf.matmul(tf.transpose(lower, [0, 2, 1]), inputs))
+        return weighted + self.proj_bias(inputs)
 
 
 class DynTemporalMLP(tf.keras.Model):
