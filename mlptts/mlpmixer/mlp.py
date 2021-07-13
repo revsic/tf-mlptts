@@ -102,7 +102,7 @@ class DynWeightMLP(tf.keras.Model):
         # [B, T, 1], [B, T, 1]
         upper, lower = self.proj_upper(inputs), self.proj_lower(inputs)
         # [B, T, T]
-        weights = self.scale * (upper + tf.transpose(lower[:, None], [0, 2, 1]))
+        weights = self.scale * (upper + tf.transpose(lower, [0, 2, 1]))
         # [B, T, 1]
         bias = self.proj_bias(inputs)
         return tf.matmul(weights, inputs) + bias
