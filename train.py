@@ -125,15 +125,15 @@ class Trainer:
 
                 mel, pmel, audio, amel, align = self.evaluate()
                 tf.summary.image(
-                    'mel/gt', self.mel_img(mel[None]), step)
+                    'mel/gt', self.mel_img(mel), step)
                 tf.summary.image(
-                    'mel/eval', self.mel_img(pmel[None]), step)
+                    'mel/eval', self.mel_img(pmel), step)
                 tf.summary.image(
-                    'mel/audio', self.mel_img(amel[None]), step)
+                    'mel/audio', self.mel_img(amel), step)
                 tf.summary.image(
-                    'align/eval', self.align_img(align[None]), step)
+                    'align/eval', self.align_img(align), step)
                 tf.summary.audio(
-                    'audio/eval', audio[None, ..., None],
+                    'audio/eval', audio[..., None],  # expand channels
                     self.config.data.sr, step)
 
                 del mel, pmel, audio, amel, align
@@ -169,11 +169,11 @@ class Trainer:
             idx: Optional[int], target index,
                 if None is given, index will be randomized.
         Returns:
-            mel: [tf.float32; [T, mel]]: gt mel-spectrogram.
-            pmel: [tf.float32; [T', mel]]: predicted mel.
-            audio: [tf.float32; [T' x hop]]: audio signal.
-            amel: [tf.float32; [T', mel]]: mel from generated audio.
-            align: [tf.float32; [T' / F, S]],
+            mel: [tf.float32; [1, T, mel]]: gt mel-spectrogram.
+            pmel: [tf.float32; [1, T', mel]]: predicted mel.
+            audio: [tf.float32; [1, T' x hop]]: audio signal.
+            amel: [tf.float32; [1, T', mel]]: mel from generated audio.
+            align: [tf.float32; [1, T', S]],
                 align for text to mel.
         """
         if idx is None:
@@ -184,14 +184,13 @@ class Trainer:
         text = text[idx:idx + 1, :textlen[idx]]
         # [1, T, mel]
         mel = mel[idx:idx + 1, :mellen[idx]]
-        # [1, T', mel], [1], [1, T' / F, S]
+        # [1, T', mel], [1], [1, T', S]
         pmel, _, aux = self.model(text, textlen[idx:idx + 1])
         # [1, T' x hop]
         audio, _ = self.diffwave(pmel)
         # [1, T', mel]
         amel = self.ttsdata.melstft(audio)
-        # [T, mel], [T', mel], [T' x hop], [T', mel], [T' / F, S]
-        return mel[0], pmel[0], audio[0], amel[0], aux['attn'][0]
+        return mel, pmel, audio, amel, aux['attn']
 
     def align_img(self, align: tf.Tensor) -> tf.Tensor:
         """Generate alignment images.
