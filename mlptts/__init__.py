@@ -33,7 +33,7 @@ class MLPTextToSpeech(tf.keras.Model):
             MLPMixer(
                 config.mel_layers,
                 config.channels,
-                config.mel_ch_hiddens,
+                config.mel_hiddens,
                 config.eps,
                 config.mel_dropout)])
 
@@ -48,7 +48,7 @@ class MLPTextToSpeech(tf.keras.Model):
             MLPMixer(
                 config.dur_layers,
                 config.channels,
-                config.dur_ch_hiddens,
+                config.dur_hiddens,
                 config.eps,
                 config.dur_dropout),
             tf.keras.layers.Dense(1),
@@ -62,7 +62,7 @@ class MLPTextToSpeech(tf.keras.Model):
             MLPMixer(
                 config.mel_layers,
                 config.channels,
-                config.mel_ch_hiddens,
+                config.mel_hiddens,
                 config.eps,
                 config.mel_dropout),
             tf.keras.layers.Dense(config.mel)])
@@ -83,11 +83,11 @@ class MLPTextToSpeech(tf.keras.Model):
             mel: [tf.float32; [B, T, mel]], log-mel scale power spectrogram.
             mellen: [tf.int32; [B]], length of the mel spectrogram.
             aux: {key: tf.Tensor}, auxiliary features.
-                attn: [tf.float32; [B, T, S]], attention alignment.
-                durations: [tf.float32; [B, S]], speech durations of each text tokens.
-                mu: [tf.float32; [B, S, R]], latent mean.
-                sigma: [tf.float32; [B, S, R]], latent stddev.
-                latent: [tf.float32; [B, S, R]], latent variable.
+                  attn: [tf.float32; [B, T, S]], attention alignment.
+                  durations: [tf.float32; [B, S]], speech durations of each text tokens.
+                  mu: [tf.float32; [B, S, R]], latent mean.
+                  sigma: [tf.float32; [B, S, R]], latent stddev.
+                  latent: [tf.float32; [B, S, R]], latent variable.
         """
         ## 1. Text encoding
         # [B, S]
@@ -169,9 +169,9 @@ class MLPTextToSpeech(tf.keras.Model):
             loss: [tf.float32; []], loss values.
             losses: {key: [tf.float32; []]}, individual loss values.
             aux: {key: tf.Tensor}, auxiliary outputs.
-                attn: [tf.float32; [B, T, S]], attention alignment.
-                mel: [tf.float32; [B, T, mel]], generated mel.
-                mellen: [tf.float32; [B]], length of the mel-spectrogram. 
+                  attn: [tf.float32; [B, T, S]], attention alignment.
+                  mel: [tf.float32; [B, T, mel]], generated mel.
+                  mellen: [tf.float32; [B]], length of the mel-spectrogram. 
         """
         # [B, T, mel], _, [B, T, S], _
         inf_mel, _, aux = self.call(text, textlen, mel=mel, mellen=mellen)

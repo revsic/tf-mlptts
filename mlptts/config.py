@@ -14,13 +14,13 @@ class Config:
         self.eps = 1e-3
 
         self.text_layers = 12
-        self.text_ch_hiddens = self.channels * 4
+        self.text_hiddens = self.channels  # desired 4
         self.text_dropout = 0.
 
         self.res_channels = 16
 
         self.dur_layers = 3
-        self.dur_ch_hiddens = self.channels
+        self.dur_hiddens = self.channels
         self.dur_dropout = 0.3
 
         self.reg_conv = 8
@@ -29,5 +29,5 @@ class Config:
         self.reg_aux = 2
 
         self.mel_layers = 12
-        self.mel_ch_hiddens = self.channels * 4
+        self.mel_hiddens = self.channels * 2  # desired 4
         self.mel_dropout = 0.
