@@ -19,30 +19,24 @@ class MLPTextToSpeech(tf.keras.Model):
         """
         super().__init__()
         self.config = config
-        self.embedding = tf.keras.Sequential([
-            tf.keras.layers.Embedding(config.vocabs, config.embedding),
-            tf.keras.layers.Conv1D(config.channels, config.prenet_kernels, padding='same')])
+        self.embedding = tf.keras.layers.Embedding(config.vocabs, config.channels)
 
         self.textenc = MLPMixer(
             config.text_layers,
             config.channels,
             config.text_ch_hiddens,
-            config.text_kernels,
-            config.text_strides,
-            config.text_tp_hiddens,
+            config.eps,
             config.text_dropout)
-        
+
         self.resenc = tf.keras.Sequential([
             tf.keras.layers.Dense(config.channels),
             MLPMixer(
-                config.res_layers,
+                config.mel_layers,
                 config.channels,
                 config.mel_ch_hiddens,
-                config.mel_kernels,
-                config.mel_strides,
-                config.mel_tp_hiddens,
+                config.eps,
                 config.mel_dropout)])
-    
+
         self.refattn = ReferenceAttention(config.channels)
         self.proj_mu = tf.keras.layers.Dense(config.res_channels)
         self.proj_sigma = tf.keras.layers.Dense(
@@ -51,10 +45,12 @@ class MLPTextToSpeech(tf.keras.Model):
         self.proj_latent = tf.keras.layers.Dense(config.channels)
 
         self.durator = tf.keras.Sequential([
-            tf.keras.Sequential([
-                MLPMixer(1, config.channels, config.channels,
-                         kernels, 1, 1, dropout=config.dur_dropout)
-                for kernels in config.dur_kernels]),
+            MLPMixer(
+                config.dur_layers,
+                config.channels,
+                config.dur_ch_hiddens,
+                config.eps,
+                config.dur_dropout),
             tf.keras.layers.Dense(1),
             tf.keras.layers.Activation(tf.nn.softplus)])
 
@@ -67,11 +63,8 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.mel_layers,
                 config.channels,
                 config.mel_ch_hiddens,
-                config.mel_kernels,
-                config.mel_strides,
-                config.mel_tp_hiddens,
+                config.eps,
                 config.mel_dropout),
-            tf.keras.layers.LayerNormalization(axis=-1),
             tf.keras.layers.Dense(config.mel)])
 
     def call(self,
