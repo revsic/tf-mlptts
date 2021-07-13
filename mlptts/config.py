@@ -29,5 +29,5 @@ class Config:
         self.reg_aux = 2
 
         self.mel_layers = 12
-        self.mel_hiddens = self.channels * 2  # desired 4
+        self.mel_hiddens = self.channels  # desired 4
         self.mel_dropout = 0.
