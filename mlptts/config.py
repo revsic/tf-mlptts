@@ -10,7 +10,7 @@ class Config:
         self.vocabs = vocabs
         self.mel = mel
 
-        self.channels = 768
+        self.channels = 256  # 768
         self.eps = 1e-3
 
         self.text_layers = 12
