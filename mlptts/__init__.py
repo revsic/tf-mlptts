@@ -42,10 +42,9 @@ class MLPTextToSpeech(tf.keras.Model):
         #         config.eps,
         #         config.mel_dropout)])
 
-        self.resenc = tf.keras.Sequential([
-            tf.keras.layers.Dense(config.channels),
-            ResNet(config.mel_layers, config.channels,
-                   config.mel_kernels, config.mel_dilations)])
+        self.resenc = ResNet(
+            config.mel_layers, config.mel,
+            config.mel_kernels, config.mel_dilations)
 
         self.refattn = ReferenceAttention(config.channels)
         self.proj_mu = tf.keras.layers.Dense(config.res_channels)
