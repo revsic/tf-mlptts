@@ -4,7 +4,8 @@ import numpy as np
 import tensorflow as tf
 
 from .config import Config
-from .mlpmixer import MLPMixer
+# from .mlpmixer import MLPMixer
+from .mlpmixer.mlp import ResBlock, ResNet
 from .refattn import ReferenceAttention
 from .regulator import Regulator
 
@@ -21,21 +22,28 @@ class MLPTextToSpeech(tf.keras.Model):
         self.config = config
         self.embedding = tf.keras.layers.Embedding(config.vocabs, config.channels)
 
-        self.textenc = MLPMixer(
-            config.text_layers,
-            config.channels,
-            config.text_hiddens,
-            config.eps,
-            config.text_dropout)
+        # self.textenc = MLPMixer(
+        #     config.text_layers,
+        #     config.channels,
+        #     config.text_hiddens,
+        #     config.eps,
+        #     config.text_dropout)
 
-        self.resenc = tf.keras.Sequential([
-            tf.keras.layers.Dense(config.channels),
-            MLPMixer(
-                config.mel_layers,
-                config.channels,
-                config.mel_hiddens,
-                config.eps,
-                config.mel_dropout)])
+        self.textenc = ResNet(
+            config.text_layers, config.channels,
+            config.text_kernels, config.text_dilations)
+
+        # self.resenc = tf.keras.Sequential([
+        #     tf.keras.layers.Dense(config.channels),
+        #     MLPMixer(
+        #         config.mel_layers,
+        #         config.channels,
+        #         config.mel_hiddens,
+        #         config.eps,
+        #         config.mel_dropout)])
+
+        self.resenc = ResNet(
+            config.mel_layers, config.channels, config.mel_kernels, config.mel_dilations)
 
         self.refattn = ReferenceAttention(config.channels)
         self.proj_mu = tf.keras.layers.Dense(config.res_channels)
@@ -44,27 +52,38 @@ class MLPTextToSpeech(tf.keras.Model):
 
         self.proj_latent = tf.keras.layers.Dense(config.channels)
 
+        # self.durator = tf.keras.Sequential([
+        #     MLPMixer(
+        #         config.dur_layers,
+        #         config.channels,
+        #         config.dur_hiddens,
+        #         config.eps,
+        #         config.dur_dropout),
+        #     tf.keras.layers.Dense(1),
+        #     tf.keras.layers.Activation(tf.nn.softplus)])
+
         self.durator = tf.keras.Sequential([
-            MLPMixer(
-                config.dur_layers,
-                config.channels,
-                config.dur_hiddens,
-                config.eps,
-                config.dur_dropout),
-            tf.keras.layers.Dense(1),
-            tf.keras.layers.Activation(tf.nn.softplus)])
+            tf.keras.Sequential([
+                ResBlock(config.dur_layers, config.channels, kernel, 1)
+                for kernel in config.dur_kernels]),
+            tf.keras.layers.Dense(1, activation=tf.nn.softplus)])
 
         self.regulator = Regulator(
             config.channels, config.reg_conv, config.reg_kernels,
             config.reg_mlp, config.reg_aux)
 
+        # self.meldec = tf.keras.Sequential([
+        #     MLPMixer(
+        #         config.mel_layers,
+        #         config.channels,
+        #         config.mel_hiddens,
+        #         config.eps,
+        #         config.mel_dropout),
+        #     tf.keras.layers.Dense(config.mel)])
+
         self.meldec = tf.keras.Sequential([
-            MLPMixer(
-                config.mel_layers,
-                config.channels,
-                config.mel_hiddens,
-                config.eps,
-                config.mel_dropout),
+            ResNet(config.mel_layers, config.channels,
+                   config.mel_kernels, config.mel_dilations),
             tf.keras.layers.Dense(config.mel)])
 
     def call(self,

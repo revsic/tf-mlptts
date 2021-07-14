@@ -1,3 +1,5 @@
+from typing import List
+
 import tensorflow as tf
 
 
@@ -135,3 +137,62 @@ class DynTemporalMLP(tf.keras.Model):
             [tf.float32; [B, T, C]], transformed tensor.
         """
         return inputs + self.transform(inputs)
+
+
+class ResBlock(tf.keras.Model):
+    """Residual block.
+    """
+    def __init__(self, num_layers: int, channels: int, kernels: int, dilations: int):
+        """Initializer.
+        Args:
+            num_layers: the number of the convolutional blocks
+                before residual connection.
+            channels: size of the input channels.
+            kernels: size of the convolutional kernels.
+            dilations: dilation rate.
+        """
+        super().__init__()
+        self.blocks = tf.keras.Sequential([
+            tf.keras.Sequential([
+                tf.keras.layers.Conv1D(
+                    channels, kernels, padding='same',
+                    dilation_rate=dilations, activation='relu'),
+                tf.keras.layers.BatchNormalization(axis=-1)])
+            for _ in range(num_layers)])
+    
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Transform inputs.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T, C]], transformed.
+        """
+        return inputs + self.blocks(inputs)
+
+
+class ResNet(tf.keras.Model):
+    """Residual network for POC.
+    """
+    def __init__(self, num_layers: int, channels: int,
+                 kernels: int, dilations: List[int]):
+        """Initializer.
+        Args:
+            num_layers: the number of the convolutional blocks
+                before residual connection.
+            channels: size of the input channels.
+            kernels: size of the convolutional kernels.
+            dilations: dilation rates.
+        """
+        super().__init__()
+        self.blocks = tf.keras.Sequential([
+            ResBlock(num_layers, channels, kernels, dilation)
+            for dilation in dilations])
+
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Transform inputs.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T, C]], transformed.
+        """
+        return self.blocks(inputs)
