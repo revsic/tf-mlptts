@@ -113,7 +113,7 @@ class MLPTextToSpeech(tf.keras.Model):
             mu, sigma = 0., 1.
         # [B, S, C]
         latent = tf.random.normal(
-            [*tf.shape(context)[:2], self.config.res_channels]) * sigma + mu
+            [*tf.shape(context)[:2], self.config.latent_channels]) * sigma + mu
         # [B, S, C]
         context = self.proj_latent(tf.concat([context, latent], axis=-1))
 
