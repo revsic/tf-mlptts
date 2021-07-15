@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .mlp import ChannelMLP, DynTemporalMLP
+from .mlp import ChannelMLP, TemporalConv
 
 
 class MLPMixer(tf.keras.Model):
@@ -10,21 +10,21 @@ class MLPMixer(tf.keras.Model):
                  numlayers: int,
                  channels: int,
                  hiddens: int,
-                 eps: float,
+                 kernels: int,
                  dropout: float = 0.):
         """Initializer.
         Args:
             numlayers: the number of the mixer layers.
             channels: size of the input channels.
             hiddens: size of the hidden channels.
-            eps: small value for layer scale in dyn-temporal mlp.
+            kernels: size of the convolutional kernels.
             dropout: dropout rate.
         """
         super().__init__()
         self.blocks = tf.keras.Sequential([
             tf.keras.Sequential([
                 ChannelMLP(channels, hiddens, dropout),
-                DynTemporalMLP(eps, dropout)])
+                TemporalConv(kernels, 1, dropout)])
             for _ in range(numlayers)])
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
