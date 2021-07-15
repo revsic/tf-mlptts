@@ -29,7 +29,7 @@ class TrainConfig:
         self.ckpt = 'D:/tf/ckpt'
 
         # model name
-        self.name = 'mlptts-conv'
+        self.name = 'mlptts-ab'
 
     def lr(self):
         """Generate proper learning rate scheduler.
