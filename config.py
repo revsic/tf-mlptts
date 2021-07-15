@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from speechset import Config as DataConfig, AcousticDataset
 from mlptts.config import Config as ModelConfig
+from utils.warmup import Warmup
 
 
 class TrainConfig:
@@ -37,6 +38,7 @@ class TrainConfig:
         mapper = {
             'expdecay': tf.keras.optimizers.schedules.ExponentialDecay,
             'piecewise': tf.keras.optimizers.schedules.PiecewiseConstantDecay,
+            'warmup': Warmup,
         }
         if self.lr_policy == 'fixed':
             return self.learning_rate
