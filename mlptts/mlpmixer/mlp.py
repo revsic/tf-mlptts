@@ -111,6 +111,39 @@ class DynWeightMLP(tf.keras.Model):
         return weighted + self.proj_bias(inputs)
 
 
+class TemporalConv(tf.keras.Model):
+    """Convolution only on temporal axis.
+    """
+    def __init__(self, kernels: int, dilations: int, dropout: float = 0.):
+        """Initializer.
+        Args:
+            kernels: size of the convolutional kernels.
+            dilations: dilation rate.
+            dropout: dropout rate.
+        """
+        super().__init__()
+        self.layernorm = tf.keras.layers.LayerNormalization()
+        self.transform = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(
+                1, (kernels, 1), padding='same', dilation_rate=(dilations, 1)),
+            tf.keras.layers.Activation(tf.nn.gelu),
+            tf.keras.layers.Dropout(dropout),
+            tf.keras.layers.Conv2D(
+                1, (kernels, 1), padding='same', dilation_rate=(dilations, 1))])
+    
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Transform the inputs.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T, C]], transformed.
+        """
+        # [B, T, C]
+        x = self.layernorm(inputs)
+        # [B, T, C]
+        return inputs + tf.squeeze(self.transform(x[..., None]), axis=-1)
+
+
 class DynTemporalMLP(tf.keras.Model):
     """Temporal MLP with dynamic weights.
     """
