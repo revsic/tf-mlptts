@@ -11,17 +11,17 @@ class Config:
         self.mel = mel
 
         self.channels = 256  # 768
-        self.dropout = 0.
+        self.dropout = 0.1
 
         self.text_layers = 8  # 12
-        self.text_hiddens = self.channels  # x 4
+        self.text_hiddens = 384  # Cx4
         self.text_kernels = 11
 
         self.res_channels = self.mel
         self.latent_channels = 16
 
         self.res_layers = 8
-        self.res_hiddens = self.mel
+        self.res_hiddens = 128  # assume mel = 80
         self.res_kernels = 11
 
         self.dur_layers = 3
@@ -33,6 +33,6 @@ class Config:
         self.reg_mlp = 16
         self.reg_aux = 2
 
-        self.mel_layers = 8
-        self.mel_hiddens = self.channels  # desired 4
+        self.mel_layers = 12
+        self.mel_hiddens = 384
         self.mel_kernels = 11

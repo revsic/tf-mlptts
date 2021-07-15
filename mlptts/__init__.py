@@ -187,9 +187,13 @@ class MLPTextToSpeech(tf.keras.Model):
         dkl = self.gll(aux['latent'], aux['mu'], aux['sigma']) - self.gll(aux['latent'])
         # []
         dkl = tf.reduce_mean(tf.reduce_sum(dkl, axis=1) / textlen[:, None])
+        # [B]
+        gal = tf.reduce_sum(self.align_penalty(textlen, mellen) * aux['attn'], axis=[1, 2])
         # []
-        loss = melloss + durloss + dkl
-        losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
+        gal = tf.reduce_mean(gal / (textlen * mellen))
+        # []
+        loss = melloss + durloss + dkl + gal
+        losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl, 'gal': gal}
         return loss, losses, \
             {'attn': aux['attn'], 'mel': inf_mel, 'mellen': tf.cast(mellen, tf.int32)}
 
@@ -206,6 +210,27 @@ class MLPTextToSpeech(tf.keras.Model):
         logstd = tf.math.log(tf.maximum(stddev, 1e-5))
         return -0.5 * (np.log(2 * np.pi) + 2 * logstd +
             tf.exp(-2 * logstd) * tf.square(inputs - mean))
+
+    def align_penalty(self, textlen: tf.Tensor, mellen: tf.Tensor, sigma: float = 0.3) -> tf.Tensor:
+        """Penalty matrix for attention diagonality.
+        Args:
+            textlen: [tf.float32; [B]], lengths of the text sequences.
+            mellen: [tf.float32; [B]], lengths of the mel spectrograms.
+            sigma: penalty smoothness factor.
+        Returns:
+            [tf.float32; [B, T, S]], penalty matrix.
+        """
+        seqlen, timestep = tf.reduce_max(textlen), tf.reduce_max(mellen)
+        # [S], [T]
+        srange, trange = tf.range(seqlen, dtype=tf.float32), tf.range(timestep, dtype=tf.float32)
+        # [B, S], [B, T]
+        srange, trange = srange[None] / textlen[:, None], trange[None] / mellen[:, None]
+        # [B, T, S]
+        penalty = 1 - tf.math.exp(
+            -tf.square(srange[:, None] - trange[..., None]) / (2 * sigma ** 2))
+        # [B, T, S]
+        mask = self.mask(textlen, seqlen)[:, None] * self.mask(mellen, timestep)[..., None]
+        return penalty * mask
 
     def mask(self, lengths: tf.Tensor, maxlen: Optional[tf.Tensor] = None) -> tf.Tensor:
         """Generate the mask from length vectors.
