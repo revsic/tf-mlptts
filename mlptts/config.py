@@ -13,13 +13,9 @@ class Config:
         self.channels = 256  # 768
         self.eps = 1e-3
 
-        # self.text_layers = 6  # 12
-        # self.text_hiddens = self.channels  # x 4
-        # self.text_dropout = 0.
-
-        self.text_layers = 2
-        self.text_kernels = 3
-        self.text_dilations = 4 * [1, 2, 4] + [1]
+        self.text_layers = 6  # 12
+        self.text_hiddens = self.channels  # x 4
+        self.text_dropout = 0.
 
         self.res_channels = 16
 
