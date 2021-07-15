@@ -4,8 +4,9 @@ import numpy as np
 import tensorflow as tf
 
 from .config import Config
-# from .mlpmixer import MLPMixer
+from .mlpmixer import MLPMixer
 from .mlpmixer.mlp import ResBlock, ResNet
+from .pe import PositionalEncodings
 from .refattn import ReferenceAttention
 from .regulator import Regulator
 
@@ -22,16 +23,13 @@ class MLPTextToSpeech(tf.keras.Model):
         self.config = config
         self.embedding = tf.keras.layers.Embedding(config.vocabs, config.channels)
 
-        # self.textenc = MLPMixer(
-        #     config.text_layers,
-        #     config.channels,
-        #     config.text_hiddens,
-        #     config.eps,
-        #     config.text_dropout)
-
-        self.textenc = ResNet(
-            config.text_layers, config.channels,
-            config.text_kernels, config.text_dilations)
+        self.pe = PositionalEncodings(config.channels)
+        self.textenc = MLPMixer(
+            config.text_layers,
+            config.channels,
+            config.text_hiddens,
+            config.eps,
+            config.text_dropout)
 
         # self.resenc = tf.keras.Sequential([
         #     tf.keras.layers.Dense(config.channels),
@@ -110,10 +108,11 @@ class MLPTextToSpeech(tf.keras.Model):
                   latent: [tf.float32; [B, S, R]], latent variable.
         """
         ## 1. Text encoding
+        seqlen = tf.shape(text)[1]
         # [B, S]
-        text_mask = self.mask(textlen, tf.shape(text)[1])
+        text_mask = self.mask(textlen, seqlen)
         # [B, S, C]
-        embeddings = self.embedding(text) * text_mask[..., None]
+        embeddings = (self.embedding(text) + self.pe(seqlen)) * text_mask[..., None]
         # [B, S, C]
         context = self.textenc(embeddings) * text_mask[..., None]
 
