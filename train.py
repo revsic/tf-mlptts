@@ -238,6 +238,7 @@ if __name__ == '__main__':
     parser.add_argument('--download', default=False, action='store_true')
     parser.add_argument('--from-raw', default=False, action='store_true')
     parser.add_argument('--ignore-warning', default=False, action='store_true')
+    parser.add_argument('--name', default=None)
     parser.add_argument('--auto-rename', default=False, action='store_true')
     args = parser.parse_args()
 
@@ -249,6 +250,9 @@ if __name__ == '__main__':
         print('[*] load config: ' + args.config)
         with open(args.config) as f:
             config = Config.load(json.load(f))
+
+    if args.name is not None:
+        config.train.name = args.name
 
     log_path = os.path.join(config.train.log, config.train.name)
     if args.auto_rename and os.path.exists(log_path):
