@@ -12,13 +12,14 @@ class TrainConfig:
         self.hash = 'undefined'
 
         # optimizer
-        # self.lr_policy = 'fixed'
-        # self.learning_rate = 1e-3
-        self.lr_policy = 'warmup'
-        self.lr_params = {
-            'learning_rate': 1e-3,
-            'warmup_steps': 200,
-        }
+        self.lr_policy = 'fixed'
+        self.learning_rate = 1e-4
+        # self.lr_policy = 'warmup'
+        # self.lr_params = {
+        #     'learning_rate': 1e-4,
+        #     'warmup_steps': 200,
+        #     'alpha': 6.,
+        # }
 
         self.beta1 = 0.9
         self.beta2 = 0.98
