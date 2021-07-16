@@ -19,10 +19,10 @@ class PointwiseBlender(tf.keras.Model):
         self.proj = tf.keras.Sequential([
             tf.keras.layers.Conv1D(channels, kernels, padding='same'),
             tf.keras.layers.LayerNormalization(axis=-1),
-            tf.keras.layers.Activation(tf.nn.silu)])
+            tf.keras.layers.Activation(tf.nn.swish)])
         self.mlp = tf.keras.Sequential([
-            tf.keras.layers.Dense(mlp, activation=tf.nn.silu),
-            tf.keras.layers.Dense(out, activation=tf.nn.silu)])
+            tf.keras.layers.Dense(mlp, activation=tf.nn.swish),
+            tf.keras.layers.Dense(out, activation=tf.nn.swish)])
     
     def call(self, context: tf.Tensor, pos: tf.Tensor) -> tf.Tensor:
         """Blend the positional information.
