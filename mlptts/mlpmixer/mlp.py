@@ -16,7 +16,7 @@ class ChannelMLP(tf.keras.Model):
         super().__init__()
         self.transform = tf.keras.Sequential([
             tf.keras.layers.LayerNormalization(axis=-1),
-            tf.keras.layers.Dense(hiddens, activation='gelu'),
+            tf.keras.layers.Dense(hiddens, activation=tf.nn.swish),
             tf.keras.layers.Dropout(dropout),
             tf.keras.layers.Dense(channels),
             tf.keras.layers.Dropout(dropout)])
@@ -50,10 +50,10 @@ class ConvMLP(tf.keras.Model):
         self.layernorm = tf.keras.layers.LayerNormalization(axis=-1)
         self.framed_mlp = tf.keras.Sequential([
             # [B, T, C, 1] => [B, T // strides, C, H]
-            # same as `Frame K-size, S-step -> Linear KxH -> GELU`.
+            # same as `Frame K-size, S-step -> Linear KxH -> Swish`.
             tf.keras.layers.Conv2D(
                 hiddens, (kernels, 1), (strides, 1),
-                padding='same', activation='gelu'),
+                padding='same', activation=tf.nn.swish),
             tf.keras.layers.Dropout(dropout),
             # [B, T // strides, C, H] -> [B, T, C, 1]
             # same as `Linear HxK -> Overlap-and-Add K-size, S-step`
@@ -126,7 +126,7 @@ class TemporalConv(tf.keras.Model):
         self.transform = tf.keras.Sequential([
             tf.keras.layers.Conv2D(
                 1, (kernels, 1), padding='same', dilation_rate=(dilations, 1)),
-            tf.keras.layers.Activation(tf.nn.gelu),
+            tf.keras.layers.Activation(tf.nn.swish),
             tf.keras.layers.Dropout(dropout),
             tf.keras.layers.Conv2D(
                 1, (kernels, 1), padding='same', dilation_rate=(dilations, 1))])
@@ -157,7 +157,7 @@ class DynTemporalMLP(tf.keras.Model):
         self.transform = tf.keras.Sequential([
             tf.keras.layers.LayerNormalization(axis=-1),
             DynWeightMLP(eps),
-            tf.keras.layers.Activation(tf.nn.gelu),
+            tf.keras.layers.Activation(tf.nn.swish),
             tf.keras.layers.Dropout(dropout),
             DynWeightMLP(eps),
             tf.keras.layers.Dropout(dropout)])
