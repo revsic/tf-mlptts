@@ -22,8 +22,8 @@ class Warmup(tf.keras.optimizers.schedules.LearningRateSchedule):
         Returns:
             learning rates.
         """
-        return self.learning_rate / tf.cast(
-            tf.maximum(self.warmup_steps - step, 1), tf.float32)
+        return self.learning_rate * tf.minimum(
+            step / self.warmup_steps, 1.)
 
     def get_config(self) -> Dict[str, Any]:
         """Get configuration.
