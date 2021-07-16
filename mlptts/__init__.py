@@ -7,7 +7,6 @@ from .config import Config
 from .mlpmixer import MLPMixer
 from .pe import PositionalEncodings
 from .refattn import ReferenceAttention
-from .regulator import Regulator
 
 
 class MLPTextToSpeech(tf.keras.Model):
@@ -51,11 +50,7 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.dur_hiddens,
                 config.dur_kernels,
                 config.dropout),
-            tf.keras.layers.Dense(1, activation=tf.nn.softplus)])
-
-        self.regulator = Regulator(
-            config.channels, config.reg_conv, config.reg_kernels,
-            config.reg_mlp, config.reg_aux)
+            tf.keras.layers.Dense(2, activation=tf.nn.softplus)])
 
         self.meldec = tf.keras.Sequential([
             MLPMixer(
@@ -83,7 +78,7 @@ class MLPTextToSpeech(tf.keras.Model):
             mellen: [tf.int32; [B]], length of the mel spectrogram.
             aux: {key: tf.Tensor}, auxiliary features.
                   attn: [tf.float32; [B, T, S]], attention alignment.
-                  durations: [tf.float32; [B, S]], speech durations of each text tokens.
+                  dursum: [tf.float32; [B]], sum of the speech durations.
                   mu: [tf.float32; [B, S, R]], latent mean.
                   sigma: [tf.float32; [B, S, R]], latent stddev.
                   latent: [tf.float32; [B, S, R]], latent variable.
@@ -118,40 +113,37 @@ class MLPTextToSpeech(tf.keras.Model):
         context = self.proj_latent(tf.concat([context, latent], axis=-1))
 
         ## 3. Inference duration
-        # [B, S]
-        inf_dur = tf.squeeze(self.durator(context), axis=-1)
+        # [B, S, 1], [B, S, 1]
+        dur, std = tf.split(self.durator(context), 2, axis=-1)
+        # [B, S], [B, S]
+        dur, std = tf.squeeze(dur, axis=-1), tf.squeeze(std, axis=-1)
         # [B]
-        inf_mellen = tf.reduce_sum(inf_dur, axis=-1)
-        if mellen is not None:
+        dursum = tf.reduce_sum(dur, axis=-1)
+        if mellen is None:
             # [B]
-            factor = tf.cast(mellen, tf.float32) / inf_mellen
-            # [B, S]
-            durations = factor[:, None] * inf_dur
+            mellen = tf.cast(tf.math.ceil(dursum), tf.float32)
         else:
             # [B]
-            mellen = tf.cast(tf.math.ceil(inf_mellen), tf.int32)
+            factor = tf.cast(mellen, tf.float32) / dursum
             # [B, S]
-            durations = inf_dur
+            dur = factor[:, None] * dur
 
         ## 4. Align
         # [B, T]
         mel_mask = self.mask(mellen)
         # [B, T, S]
         attn_mask = mel_mask[..., None] * text_mask[:, None]
-        # [B, T, S], [B, T, C]
-        weights, aligned = self.regulator(context, durations, attn_mask)
+        # [B, T, S]
+        weights = self.gaussian_upsampler(dur, std, attn_mask)
+        # [B, T, C]
+        aligned = tf.matmul(weights, context)
 
         ## 5. Decode mel-spectrogram.
         # [B, T, mel]
         mel = self.meldec(aligned) * mel_mask[..., None]
         # auxiliary features
-        aux = {
-            'attn': weights,
-            'dur': inf_dur,
-            'mu': mu,
-            'sigma': sigma,
-            'latent': latent}
-        return mel, mellen, aux
+        return mel, mellen, {
+            'attn': weights, 'dursum': dursum, 'mu': mu, 'sigma': sigma, 'latent': latent}
 
     def compute_loss(self,
                      text: tf.Tensor,
@@ -181,21 +173,16 @@ class MLPTextToSpeech(tf.keras.Model):
         melloss = tf.reduce_mean(
             tf.reduce_sum(tf.abs(inf_mel - mel), axis=1) / mellen[:, None])
         # []
-        durloss = tf.reduce_mean(
-            tf.abs(tf.reduce_sum(aux['dur'], axis=1) - mellen) / textlen)
+        durloss = tf.reduce_mean(tf.abs(aux['dursum'] - mellen) / textlen)
         # [B, S, C]
         dkl = self.gll(aux['latent'], aux['mu'], aux['sigma']) - self.gll(aux['latent'])
         # []
         dkl = tf.reduce_mean(tf.reduce_sum(dkl, axis=1) / textlen[:, None])
-        # [B]
-        gal = tf.reduce_sum(self.align_penalty(textlen, mellen) * aux['attn'], axis=[1, 2])
         # []
-        gal = tf.reduce_mean(gal / (textlen * mellen))
-        # []
-        loss = melloss + durloss + dkl + gal
-        losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl, 'gal': gal}
-        return loss, losses, \
-            {'attn': aux['attn'], 'mel': inf_mel, 'mellen': tf.cast(mellen, tf.int32)}
+        loss = melloss + durloss + dkl
+        losses = {'melloss': melloss, 'durloss': durloss, 'dkl': dkl}
+        return loss, losses, {
+            'attn': aux['attn'], 'mel': inf_mel, 'mellen': tf.cast(mellen, tf.int32)}
 
     def gll(self, inputs: tf.Tensor, mean: tf.Tensor = 0., stddev: tf.Tensor = 1.) -> tf.Tensor:
         """Gaussian log-likelihood.
@@ -244,6 +231,24 @@ class MLPTextToSpeech(tf.keras.Model):
             maxlen = tf.reduce_max(lengths)
         # [B, maxlen]
         return tf.cast(tf.range(maxlen)[None] < lengths[:, None], tf.float32)
+
+    def gaussian_upsampler(self, dur: tf.Tensor, std: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
+        """Generate alignment from duration and standard deviation.
+        Args;
+            dur: [tf.float32; [B, S]], speech duration for each text tokens.
+            std: [tf.float32; [B, S]], standard deviation.
+            mask: [tf.float32; [B, T, S]], attention mask.
+        Returns:
+            [tf.float32; [B, T, S]], attention alignment.
+        """
+        # [B, S]
+        middle = tf.math.cumsum(dur, axis=-1) - 0.5 * dur
+        # [1, T, 1]
+        trange = tf.range(tf.shape(mask)[1], dtype=tf.float32)[None, :, None]
+        # [B, T, S]
+        logit = -tf.square(trange - middle[:, None]) / (2 * tf.square(std[:, None]))
+        # [B, T, S]
+        return tf.nn.softmax(logit * mask[..., 0:1], axis=-1) * mask
 
     def write(self, path: str,
               optim: Optional[tf.keras.optimizers.Optimizer] = None):

@@ -28,11 +28,6 @@ class Config:
         self.dur_hiddens = self.channels
         self.dur_kernels = 3
 
-        self.reg_conv = 8
-        self.reg_kernels = 3
-        self.reg_mlp = 16
-        self.reg_aux = 2
-
         self.mel_layers = 12
         self.mel_hiddens = 384
         self.mel_kernels = 11
