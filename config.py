@@ -12,8 +12,13 @@ class TrainConfig:
         self.hash = 'undefined'
 
         # optimizer
-        self.lr_policy = 'fixed'
-        self.learning_rate = 1e-3
+        # self.lr_policy = 'fixed'
+        # self.learning_rate = 1e-3
+        self.lr_policy = 'warmup'
+        self.lr_params = {
+            'learning_rate': 1e-3,
+            'warmup_steps': 200,
+        }
 
         self.beta1 = 0.9
         self.beta2 = 0.98
@@ -27,7 +32,7 @@ class TrainConfig:
 
         # path config
         self.log = './log'
-        self.ckpt = 'D:/tf/ckpt'
+        self.ckpt = '/hdd1/revsic/ckpt/mlptts'
 
         # model name
         self.name = 'mlptts-ab'
