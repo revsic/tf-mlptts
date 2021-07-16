@@ -50,7 +50,8 @@ class Trainer:
             config.train.lr(),
             config.train.beta1,
             config.train.beta2,
-            config.train.eps)
+            config.train.eps,
+            clipvalue=1e5)
 
         self.train_log = tf.summary.create_file_writer(
             os.path.join(config.train.log, config.train.name, 'train'))
