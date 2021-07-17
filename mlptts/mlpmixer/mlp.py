@@ -3,23 +3,46 @@ from typing import List
 import tensorflow as tf
 
 
-class ChannelMLP(tf.keras.Model):
-    """MLP-layer introduced by MLP-Mixer.
+class Affine(tf.keras.Model):
+    """Affine transformation.
     """
-    def __init__(self, channels: int, hiddens: int, dropout: float = 0.):
+    def __init__(self, channels: int, scale: float = 1., bias: float = 0.):
+        """Initializer.
+        Args:
+            channels: size of the input channels.
+            scale: initial scale value.
+            bias: initial bias value.
+        """
+        super().__init__()
+        self.scale = tf.Variable(tf.fill([channels], scale))
+        self.bias = tf.Variable(tf.fill([channels], bias))
+    
+    def call(self, inputs: tf.Tensor) -> tf.Tensor:
+        """Affine transform the inputs.
+        Args:
+            inputs: [tf.float32; [B, T, C]], input tensor.
+        Returns:
+            [tf.float32; [B, T, C]], affine transformed.
+        """
+        return inputs * self.scale[None, None] + self.bias[None, None]
+
+
+class ChannelMLP(tf.keras.Model):
+    """MLP-layer introduced by Res-MLP.
+    """
+    def __init__(self, channels: int, hiddens: int, eps: float = 1e-3):
         """Initializer.
         Args:
             channels: size of the input channels.
             hiddens: size of the hidden channels.
-            dropout: dropout rate.
+            eps: small value for pre-affine scaler.
         """
         super().__init__()
         self.transform = tf.keras.Sequential([
-            tf.keras.layers.LayerNormalization(axis=-1),
+            Affine(channels, eps),
             tf.keras.layers.Dense(hiddens, activation=tf.nn.swish),
-            tf.keras.layers.Dropout(dropout),
             tf.keras.layers.Dense(channels),
-            tf.keras.layers.Dropout(dropout)])
+            Affine(channels)])
 
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         """MLP transform.
@@ -114,22 +137,23 @@ class DynWeightMLP(tf.keras.Model):
 class TemporalConv(tf.keras.Model):
     """Convolution only on temporal axis.
     """
-    def __init__(self, kernels: int, dilations: int, dropout: float = 0.):
+    def __init__(self, channels: int, kernels: int, dilations: int, eps: float = 0.):
         """Initializer.
         Args:
+            channels: size of the input channels.
             kernels: size of the convolutional kernels.
             dilations: dilation rate.
             dropout: dropout rate.
         """
         super().__init__()
-        self.layernorm = tf.keras.layers.LayerNormalization()
+        self.preaffine = Affine(channels, eps)
         self.transform = tf.keras.Sequential([
             tf.keras.layers.Conv2D(
-                1, (kernels, 1), padding='same', dilation_rate=(dilations, 1)),
-            tf.keras.layers.Activation(tf.nn.swish),
-            tf.keras.layers.Dropout(dropout),
+                1, (kernels, 1), padding='same', dilation_rate=(dilations, 1),
+                activation=tf.nn.swish),
             tf.keras.layers.Conv2D(
                 1, (kernels, 1), padding='same', dilation_rate=(dilations, 1))])
+        self.postaffine = Affine(channels)
     
     def call(self, inputs: tf.Tensor) -> tf.Tensor:
         """Transform the inputs.
@@ -139,9 +163,11 @@ class TemporalConv(tf.keras.Model):
             [tf.float32; [B, T, C]], transformed.
         """
         # [B, T, C]
-        x = self.layernorm(inputs)
+        x = self.preaffine(inputs)
         # [B, T, C]
-        return inputs + tf.squeeze(self.transform(x[..., None]), axis=-1)
+        x = tf.squeeze(self.transform(x[..., None]), axis=-1)
+        # [B, T, C]
+        return inputs + self.postaffine(x)
 
 
 class DynTemporalMLP(tf.keras.Model):
