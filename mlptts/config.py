@@ -11,7 +11,7 @@ class Config:
         self.mel = mel
 
         self.channels = 256  # 768
-        self.dropout = 0.1
+        self.eps = 1e-3
 
         self.text_layers = 8  # 12
         self.text_hiddens = 384  # Cx4

@@ -27,14 +27,14 @@ class MLPTextToSpeech(tf.keras.Model):
             config.channels,
             config.text_hiddens,
             config.text_kernels,
-            config.dropout)
+            config.eps)
 
         self.resenc = MLPMixer(
             config.res_layers,
             config.res_channels,
             config.res_hiddens,
             config.res_kernels,
-            config.dropout)
+            config.eps)
 
         self.refattn = ReferenceAttention(config.res_channels)
         self.proj_mu = tf.keras.layers.Dense(config.latent_channels)
@@ -49,7 +49,7 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.channels,
                 config.dur_hiddens,
                 config.dur_kernels,
-                config.dropout),
+                config.eps),
             tf.keras.layers.Dense(2, activation=tf.nn.softplus)])
 
         self.meldec = tf.keras.Sequential([
@@ -58,7 +58,7 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.channels,
                 config.mel_hiddens,
                 config.mel_kernels,
-                config.dropout),
+                config.eps),
             tf.keras.layers.Dense(config.mel)])
 
     def call(self,
