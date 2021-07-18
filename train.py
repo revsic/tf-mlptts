@@ -286,6 +286,8 @@ if __name__ == '__main__':
         trainer.model(text, textlen, mel, mellen)
         # load
         trainer.model.restore(ckpt_path, trainer.optim)
+        # since epoch starts with 0
+        args.load_epoch += 1
 
     repo = git.Repo()
     config.train.hash = repo.head.object.hexsha
