@@ -269,8 +269,8 @@ if __name__ == '__main__':
     lj = LJSpeech(args.data_dir, args.download, not args.from_raw)
     ttsdata = AcousticDataset(lj, config.data)
 
-    glowtts = MLPTextToSpeech(config.model)
-    trainer = Trainer(glowtts, ttsdata, config)
+    mlptts = MLPTextToSpeech(config.model)
+    trainer = Trainer(mlptts, ttsdata, config)
 
     if args.load_epoch > 0:
         super_path = os.path.join(config.train.ckpt, config.train.name)
@@ -281,6 +281,10 @@ if __name__ == '__main__':
         ckpt_path = os.path.join(super_path, ckpt_path[:-6])
         
         print('[*] load checkpoint: ' + ckpt_path)
+        # build model
+        text, textlen, mel, mellen = next(iter(trainer.testset))
+        trainer.model(text, textlen, mel, mellen)
+        # load
         trainer.model.restore(ckpt_path, trainer.optim)
 
     repo = git.Repo()
