@@ -282,7 +282,7 @@ if __name__ == '__main__':
         
         print('[*] load checkpoint: ' + ckpt_path)
         # build model
-        text, textlen, mel, mellen = next(iter(trainer.testset))
+        text, mel, textlen, mellen = next(iter(trainer.testset))
         trainer.model(text, textlen, mel, mellen)
         # load
         trainer.model.restore(ckpt_path, trainer.optim)
