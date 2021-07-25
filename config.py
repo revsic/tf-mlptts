@@ -13,7 +13,7 @@ class TrainConfig:
 
         # optimizer
         self.lr_policy = 'fixed'
-        self.learning_rate = 1e-4
+        self.learning_rate = 1e-3
         # self.lr_policy = 'warmup'
         # self.lr_params = {
         #     'learning_rate': 1e-4,
@@ -29,7 +29,7 @@ class TrainConfig:
         self.split = 13000
         self.bufsiz = 48
 
-        self.epoch = 100
+        self.epoch = 200
 
         # path config
         self.log = './log'
