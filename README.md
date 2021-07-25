@@ -60,5 +60,5 @@ tts.restore('./mlptts_299.ckpt-1').expect_partial()
 train LJSpeech 300 epochs with [tf-diffwave](https://github.com/revsic/tf-diffwave)
 
 ![loss](./rsrc/loss.png)
-![align](./rsrc/align.jpg)
-![mel](./rsrc/mel.jpg)
+![align](./rsrc/align.png)
+![mel](./rsrc/mel.png)
