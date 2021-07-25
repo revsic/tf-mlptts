@@ -99,7 +99,7 @@ It is simple convolution only acts on temporal axis. To prevent the operation on
 C. DynTemporalMLP
 
 It computes dynamic MLP weights from input features. For simplicity, mlp operates on transposed and concatenated features.
-> [B, T, C, 1] x [B, T, 1, C] = [B, T, T, Cx2] -> [B, T, T, 1]
+> [B, 1, T, C] x [B, T, 1, C] = [B, T, T, Cx2] -> [B, T, T, 1]
 
 It has two philosophical differences between MLP-Mixer.
 
