@@ -24,11 +24,11 @@ class TrainConfig:
         self.epoch = 200
 
         # path config
-        self.log = './log'
-        self.ckpt = '/hdd1/revsic/ckpt/mlptts'
+        self.log = '/hdd1/revsic/ckpt/mlptts/log'
+        self.ckpt = '/hdd1/revsic/ckpt/mlptts/ckpt'
 
         # model name
-        self.name = 'mlptts-ab'
+        self.name = 'mlptts'
 
 
 class Config:
