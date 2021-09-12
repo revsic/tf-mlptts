@@ -1,8 +1,8 @@
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 
 import tensorflow as tf
 
-from ..mlptts import MLPTextToSpeech
+from mlptts import MLPTextToSpeech
 
 
 class TrainWrapper:
