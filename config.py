@@ -2,7 +2,6 @@ import tensorflow as tf
 
 from speechset import Config as DataConfig, AcousticDataset
 from mlptts.config import Config as ModelConfig
-from utils.warmup import Warmup
 
 
 class TrainConfig:
@@ -12,14 +11,7 @@ class TrainConfig:
         self.hash = 'undefined'
 
         # optimizer
-        self.lr_policy = 'fixed'
         self.learning_rate = 1e-3
-        # self.lr_policy = 'warmup'
-        # self.lr_params = {
-        #     'learning_rate': 1e-4,
-        #     'warmup_steps': 200,
-        #     'alpha': 6.,
-        # }
 
         self.beta1 = 0.9
         self.beta2 = 0.98
@@ -38,19 +30,6 @@ class TrainConfig:
         # model name
         self.name = 'mlptts-ab'
 
-    def lr(self):
-        """Generate proper learning rate scheduler.
-        """
-        mapper = {
-            'expdecay': tf.keras.optimizers.schedules.ExponentialDecay,
-            'piecewise': tf.keras.optimizers.schedules.PiecewiseConstantDecay,
-            'warmup': Warmup,
-        }
-        if self.lr_policy == 'fixed':
-            return self.learning_rate
-        if self.lr_policy in mapper:
-            return mapper[self.lr_policy](**self.lr_params)
-        raise ValueError('invalid lr_policy')
 
 class Config:
     """Integrated configuration.
