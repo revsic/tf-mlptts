@@ -139,7 +139,7 @@ class Aligner(tf.keras.Model):
         mellen = tf.cast(tf.reduce_sum(mask[..., 0], axis=-1), tf.int32)
         # [B]
         return tf.gather_nd(
-            log_alphas, tf.stack([tf.range(bsize), textlen - 1, mellen - 1], axis=-1))
+            log_alphas, tf.stack([tf.range(bsize), mellen - 1, textlen - 1], axis=-1))
 
     def reduction(self, inputs: tf.Tensor) -> Tuple[tf.Tensor, Optional[tf.Tensor]]:
         """Reduce the timesteps.
