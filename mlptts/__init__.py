@@ -38,7 +38,7 @@ class MLPTextToSpeech(tf.keras.Model):
         self.proj_var = tf.keras.layers.Dense(config.latent_channels * 2)
         self.proj_latent = tf.keras.layers.Dense(config.channels)
 
-        self.alinger = Aligner(
+        self.aligner = Aligner(
             config.mel,
             config.channels,
             config.ctc_hiddens,
