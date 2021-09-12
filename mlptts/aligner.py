@@ -59,7 +59,7 @@ class Aligner(tf.keras.Model):
         # [B, T // F, F, S]
         align = tf.tile(align[..., None, :], [1, 1, self.factor, 1])
         # [B, T, S]
-        align = tf.reshape(align, [bsize, timestep, seqlen])
+        align = tf.reshape(align, [bsize, -1, seqlen])
         if remain is not None:
             # [B, T, S]
             align = align[:, :-remain]
