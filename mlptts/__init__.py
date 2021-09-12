@@ -116,11 +116,11 @@ class MLPTextToSpeech(tf.keras.Model):
         # [B, S]
         durations = tf.squeeze(self.durator(context), axis=-1) * text_mask
         if mel is not None:
-            # [B, T // F, S], [B, T, S]
-            log_prob, attn = self.aligner(context, mel, attn_mask)
+            # [B], [B, T, S]
+            ctc, attn = self.aligner(context, mel, attn_mask)
         else:
             # placeholders
-            log_prob = None
+            ctc = None
             # [B, S], quantize
             durations = tf.cast(tf.maximum(tf.round(durations), 1.) * text_mask, tf.int32)
             # [B]
@@ -143,7 +143,7 @@ class MLPTextToSpeech(tf.keras.Model):
             # residual latent
             'mu': mu, 'sigma': sigma, 'latent': latent,
             # ctc operation
-            'log_prob': log_prob}
+            'ctc': ctc}
 
     def mask(self, lengths: tf.Tensor, maxlen: Optional[tf.Tensor] = None) -> tf.Tensor:
         """Generate the mask from length vectors.
