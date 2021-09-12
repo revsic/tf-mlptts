@@ -14,6 +14,7 @@ from speechset import AcousticDataset
 from speechset.datasets import LJSpeech
 from mlptts import MLPTextToSpeech
 from utils.diffwave import pretrained_diffwave
+from utils.wrapper import TrainWrapper
 
 
 class Trainer:
@@ -30,7 +31,7 @@ class Trainer:
                 which provides already batched and normalized speech dataset.
             config: unified configurations.
         """
-        self.model = model
+        self.wrapper = TrainWrapper(model)
         self.ttsdata = ttsdata
         self.config = config
 
@@ -74,24 +75,11 @@ class Trainer:
         for epoch in tqdm.trange(epoch, self.config.train.epoch):
             with tqdm.tqdm(total=self.trainsize, leave=False) as pbar:
                 for it, (text, mel, textlen, mellen) in enumerate(self.trainset):
-                    with tf.GradientTape() as tape:
-                        # tape.watch(self.model.trainable_variables)
-                        loss, losses, aux = \
-                            self.model.compute_loss(text, textlen, mel, mellen)
-
-                    grad = tape.gradient(loss, self.model.trainable_variables)
-                    self.optim.apply_gradients(
-                        zip(grad, self.model.trainable_variables))
-
-                    norm = tf.reduce_mean([
-                        tf.norm(g) for g in grad if g is not None])
-                    del grad
+                    loss, losses, aux = self.wrapper.apply_gradient(
+                        self.optim, text, textlen, mel, mellen)
 
                     step += 1
-                    pbar.set_postfix(
-                        {'loss': loss.numpy().item(),
-                         'step': step,
-                         'grad': norm.numpy().item()})
+                    pbar.set_postfix({'loss': loss.numpy().item(), 'step': step})
                     pbar.update()
 
                     with self.train_log.as_default():
@@ -99,12 +87,8 @@ class Trainer:
                         for key, value in losses.items():
                             tf.summary.scalar(f'loss/{key}', value, step)
 
-                        lr = self.optim.lr
-                        # check fixed learning rate.
-                        if not isinstance(lr, tf.Variable):
-                            lr = lr(step)
-                        tf.summary.scalar('common/lr', lr, step)
-                        tf.summary.scalar('common/grad-norm', norm, step)
+                        tf.summary.scalar('common/param-norm', aux['paramnorm'], step)
+                        tf.summary.scalar('common/grad-norm', aux['gradnorm'], step)
 
                         if (it + 1) % (self.trainsize // 10) == 0:
                             tf.summary.image(
@@ -114,9 +98,9 @@ class Trainer:
                                 'align/train', self.align_img(aux['attn']),
                                 step, max_outputs=1)
 
-                    del loss, losses, aux, norm
+                    del loss, losses, aux
 
-            self.model.write(
+            self.wrapper.model.write(
                 '{}_{}.ckpt'.format(self.ckpt_path, epoch), self.optim)
 
             with self.test_log.as_default():
@@ -151,7 +135,7 @@ class Trainer:
         loss = {}
         for text, mel, textlen, mellen in tqdm.tqdm(
                 self.testset, total=self.testsize, leave='False'):
-            loss_, losses, _ = self.model.compute_loss(text, textlen, mel, mellen)
+            loss_, losses, _ = self.wrapper.compute_loss(text, textlen, mel, mellen)
             losses['loss'] = loss_
             for key, val in losses.items():
                 if key not in loss:
@@ -185,7 +169,7 @@ class Trainer:
         # [1, T, mel]
         mel = mel[idx:idx + 1, :mellen[idx]]
         # [1, T', mel], [1], [1, T', S]
-        pmel, _, aux = self.model(text, textlen[idx:idx + 1])
+        pmel, _, aux = self.wrapper.forward(text, textlen[idx:idx + 1])
         # [1, T' x hop]
         audio, _ = self.diffwave(pmel)
         # [1, T', mel]
@@ -283,9 +267,9 @@ if __name__ == '__main__':
         print('[*] load checkpoint: ' + ckpt_path)
         # build model
         text, mel, textlen, mellen = next(iter(trainer.testset))
-        trainer.model(text, textlen, mel, mellen)
+        trainer.wrapper.forward(text, textlen, mel, mellen)
         # load
-        trainer.model.restore(ckpt_path, trainer.optim)
+        trainer.wrapper.model.restore(ckpt_path, trainer.optim)
         # since epoch starts with 0
         args.load_epoch += 1
 
