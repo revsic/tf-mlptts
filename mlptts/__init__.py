@@ -101,7 +101,9 @@ class MLPTextToSpeech(tf.keras.Model):
             # [B, S, C]
             aligned = self.refattn(context, residual, tf.transpose(attn_mask, [0, 2, 1]))
             # [B, S, C]
-            mu, sigma = tf.split(self.proj_var(aligned), 2, axis=-1)
+            mu, logs = tf.split(self.proj_var(aligned), 2, axis=-1)
+            # [B, S, C]
+            sigma = tf.nn.softplus(logs)
         else:
             mu, sigma = 0., 1.
         # [B, S, C]
@@ -120,7 +122,7 @@ class MLPTextToSpeech(tf.keras.Model):
             # placeholders
             log_prob = None
             # [B, S], quantize
-            durations = tf.cast(tf.round(durations), tf.int32)
+            durations = tf.cast(tf.maximum(tf.round(durations), 1.) * text_mask, tf.int32)
             # [B]
             mellen = tf.reduce_sum(durations, axis=-1)
             # [B, T]
