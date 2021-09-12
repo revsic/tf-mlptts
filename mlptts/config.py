@@ -24,6 +24,11 @@ class Config:
         self.res_hiddens = 128  # assume mel = 80
         self.res_kernels = 193
 
+        self.ctc_layers = 2
+        self.ctc_hiddens = 384
+        self.ctc_factor = 2
+        self.ctc_lambda = 1e-2
+
         self.dur_layers = 3
         self.dur_hiddens = self.channels
         self.dur_kernels = 3
