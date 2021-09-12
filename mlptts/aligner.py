@@ -19,6 +19,7 @@ class Aligner(tf.keras.Model):
         Args:
             reduction: reduction factor.
         """
+        super().__init__()
         self.mel = mel
         self.factor = factor
         self.mdn = tf.keras.Sequential([
