@@ -111,7 +111,7 @@ class TrainWrapper:
         dkl = tf.reduce_mean(
             tf.reduce_sum(dkl * text_mask[..., None], axis=1) / textlen[:, None])
         # []
-        loss = melloss + ctcloss + durloss + dkl
+        loss = melloss + self.model.config.ctc_lambda * ctcloss + durloss + dkl
         losses = {'melloss': melloss, 'ctcloss': ctcloss, 'durloss': durloss, 'dkl': dkl}
         return loss, losses, {
             'attn': aux['attn'], 'mel': pred, 'mellen': tf.cast(mellen, tf.int32)}
