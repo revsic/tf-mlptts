@@ -92,7 +92,7 @@ class TrainWrapper:
 
         ## 2. Duration loss
         # [B, S]
-        logdur = tf.math.log(tf.reduce_sum(aux['attn'], axis=1))
+        logdur = tf.math.log(tf.maximum(tf.reduce_sum(aux['attn'], axis=1), 1.))
         # [B, S]
         predur = tf.math.log(tf.maximum(aux['durations'], 1.))
         # []
