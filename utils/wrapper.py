@@ -20,7 +20,6 @@ class TrainWrapper:
         """
         return self.model(*args, **kwargs)
 
-    @tf.function
     def apply_gradient(self,
                        optim: tf.keras.optimizers.Optimizer,
                        text: tf.Tensor,
@@ -50,7 +49,7 @@ class TrainWrapper:
         # compute gradient
         grad = tape.gradient(loss, self.model.trainable_variables)
         # update
-        optim.apply_gradient(zip(grad, self.model.trainable_variables))
+        optim.apply_gradients(zip(grad, self.model.trainable_variables))
         # norms
         gradnorm = tf.reduce_mean([
             tf.norm(g) for g in grad if g is not None])
@@ -60,7 +59,6 @@ class TrainWrapper:
             'gradnorm': gradnorm.numpy().item(),
             'paramnorm': paramnorm.numpy().item(), **aux}
 
-    @tf.function
     def compute_loss(self,
                      text: tf.Tensor,
                      textlen: tf.Tensor,
