@@ -53,7 +53,7 @@ class Aligner(tf.keras.Model):
         log_prob = -2 * tf.reduce_mean(logs, axis=-1)[:, None] - (
             tf.reduce_sum(tf.square(mu * tf.exp(-logs)), axis=-1)[:, None]
             -2 * tf.matmul(mel, tf.transpose(mu * tf.exp(-2 * logs), [0, 2, 1]))
-            + tf.matmul(tf.square(mel), tf.exp(-2 * logs))) / self.mel * rmask
+            + tf.matmul(tf.square(mel), tf.transpose(tf.exp(-2 * logs), [0, 2, 1]))) / self.mel * rmask
         # [B, T // F, S]
         align = self.search(log_prob, rmask)
         # [B, T // F, F, S]
@@ -133,7 +133,7 @@ class Aligner(tf.keras.Model):
             log_alpha = tf.reduce_logsumexp(tf.stack([log_alpha, prev]), axis=0) + score
             log_alphas.append(log_alpha)
         # [B, T, S]
-        log_alphas = tf.stack(log_alphas, dim=1)
+        log_alphas = tf.stack(log_alphas, axis=1)
         # [B]
         textlen = tf.cast(tf.reduce_sum(mask[:, 0], axis=-1), tf.int32)
         mellen = tf.cast(tf.reduce_sum(mask[..., 0], axis=-1), tf.int32)
