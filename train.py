@@ -48,7 +48,7 @@ class Trainer:
             self.testset).numpy().item()
 
         self.optim = tf.keras.optimizers.Adam(
-            config.train.lr(),
+            config.train.learning_rate,
             config.train.beta1,
             config.train.beta2,
             config.train.eps)
