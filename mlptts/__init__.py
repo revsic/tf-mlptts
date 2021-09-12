@@ -53,7 +53,7 @@ class MLPTextToSpeech(tf.keras.Model):
                 config.dur_hiddens,
                 config.dur_kernels,
                 config.eps),
-            tf.keras.layers.Dense(2, activation=tf.nn.softplus)])
+            tf.keras.layers.Dense(1, activation=tf.nn.softplus)])
 
         self.meldec = tf.keras.Sequential([
             MLPMixer(
