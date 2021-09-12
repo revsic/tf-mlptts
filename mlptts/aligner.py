@@ -35,11 +35,11 @@ class Aligner(tf.keras.Model):
             mel: [tf.float32; [B, T, mel]], ground-truh mel-spectrogram.
             mask: [tf.float32; [B, T, S]], attention mask.
         Returns:
-            log_prob: [tf.float32; [B, T, S]], log-probability.
+            ctc: [tf.float32; [B]], marginalized log-probability.
             align: [tf.float32; [B, T, S]], attention alignment.
         """
-        # B, T, S
-        bsize, timestep, seqlen = tf.shape(mask)
+        # B, S
+        bsize, _, seqlen = tf.shape(mask)
         # [B, T // F, F x mel]
         mel, remain = self.reduction(mel)
         # [B, T // F, F x S]
@@ -63,8 +63,8 @@ class Aligner(tf.keras.Model):
         if remain is not None:
             # [B, T, S]
             align = align[:, :-remain]
-        # [B, T // F, S], [B, T, S]
-        return log_prob, tf.stop_gradient(align)
+        # [B], [B, T, S]
+        return self.marginalize(log_prob, rmask), tf.stop_gradient(align)
 
     def search(self, log_prob: tf.Tensor, mask: tf.Tensor) -> tf.Tensor:
         """Monotonic-alignment search.
