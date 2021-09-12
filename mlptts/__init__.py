@@ -82,7 +82,7 @@ class MLPTextToSpeech(tf.keras.Model):
             aux: {key: tf.Tensor}, auxiliary features.
         """
         ## 1. Text encoding
-        seqlen = tf.shape(text)[1]
+        bsize, seqlen = tf.shape(text)
         # [B, S]
         text_mask = self.mask(textlen, seqlen)
         # [B, S, C]
@@ -106,7 +106,7 @@ class MLPTextToSpeech(tf.keras.Model):
             mu, sigma = 0., 1.
         # [B, S, C]
         latent = tf.random.normal(
-            [*tf.shape(context)[:2], self.config.latent_channels]) * sigma + mu
+            [bsize, seqlen, self.config.latent_channels]) * sigma + mu
         # [B, S, C]
         context = self.proj_latent(tf.concat([context, latent], axis=-1))
 
