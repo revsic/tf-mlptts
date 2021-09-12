@@ -99,8 +99,7 @@ class TrainWrapper:
         durloss = tf.reduce_mean(
             tf.reduce_sum(tf.square(logdur - predur), axis=1) / textlen)
         # []
-        ctcloss = tf.reduce_mean(
-            self.model.aligner.marginalize(aux['log_prob'], aux['mask']))
+        ctcloss = -tf.reduce_mean(aux['ctc'])
 
         ## 3. Residual latent
         # [B, S, C]
