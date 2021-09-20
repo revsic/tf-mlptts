@@ -4,6 +4,7 @@ Tensorflow implementation of MLP-Mixer based TTS.
 
 - It is for testing mlp-based architecture and TTS compatibility.
 - Experimental detail is described on [Philosophy](#philosophy).
+- Samples are available in [here](https://revsic.github.io/tf-mlptts/).
 
 ## Requirements
 
@@ -163,7 +164,7 @@ Except for those of them, I'm interested in AlignTTS[6]. It uses the Mixture-den
 
 MLP-TTS also uses MDN and CTC for modeling mutual information between text and mel-spectrogram, and find the alignment with monotonic-alignment search from likelihood matrix instead of Viterbi algorithm. Then it is reduced to durations and distilled to durator modules.
 
-CTC+MAS is better than gaussian upsampler, concerning spectrogram restoration. It can generate human audible speeches and samples could be found on [WIP]. I estimate the reason for the failure is that the gradient of the durator did not backward to the text encoders, and text encoders could generate only context features.
+CTC+MAS is better than gaussian upsampler, concerning spectrogram restoration. It can generate human audible speeches and samples could be found on [here](https://revsic.github.io/tf-mlptts/). I estimate the reason for the failure is that the gradient of the durator did not backward to the text encoders, and text encoders could generate only context features.
 
 ### 4. Future works
 
